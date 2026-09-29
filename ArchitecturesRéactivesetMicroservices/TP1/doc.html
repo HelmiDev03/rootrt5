@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TP1 — Design Patterns : refactoring d'une application Java</title>
+<meta name="description" content="Refactoring d'une application Java de boutique en ligne avec les patterns Factory, Singleton, Adapter, Composite, Observer et Strategy, puis architecture en couches.">
+<meta name="author" content="Mohamed Helmi Lakhder &amp; Oussama Bouchalah">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='41' font-family='Segoe UI,Arial,sans-serif' font-size='22' font-weight='700' fill='white' text-anchor='middle'%3ETP1%3C/text%3E%3C/svg%3E">
+<script>
+  // Theme: the choice saved by the toggle (shared with the RT5 site), otherwise the system setting.
+  function applyTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  }
+  applyTheme();
+  // Inside the RT5 site the toggle lives in the site's top bar.
+  if (window.self !== window.top) document.documentElement.classList.add("framed");
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --soft: #f6f7fb; --text: #1b1d26; --muted: #5d6275; --border: #e3e5ee;
+    --accent: #4f46e5; --accent-soft: #eef0ff; --code: #f6f8fa; --warn: #b45309; --warn-soft: #fff8eb;
+    --hl-keyword: #cf222e; --hl-title: #8250df; --hl-const: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #6e7781;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media screen {
+    :root.dark {
+      color-scheme: dark;
+      --bg: #0d0f15; --soft: #141722; --text: #e5e7ef; --muted: #9aa0b4; --border: #242836;
+      --accent: #8b93ff; --accent-soft: #1b1e38; --code: #11141c; --warn: #f5b041; --warn-soft: #231d10;
+      --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-const: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #8b949e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); max-width: 1220px; margin: 0 auto; }
+  .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 36px 18px; border-right: 1px solid var(--border); }
+  .sidebar .label { margin: 0 10px 10px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: flex; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; line-height: 1.4; }
+  .toc a span { font: 12px/1.6 var(--mono); opacity: .7; }
+  .toc a:hover { background: var(--soft); color: var(--text); }
+  .toc a.active { background: var(--accent-soft); color: var(--accent); }
+  .content { min-width: 0; max-width: 880px; padding: 56px 56px 120px; }
+  .toc-mobile { display: none; }
+
+  .eyebrow { margin: 0 0 12px; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 0 0 12px; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.15; letter-spacing: -.02em; }
+  .authors { margin: 0 0 22px; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--bg); font-size: 14px; font-weight: 500; text-decoration: none; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { opacity: .9; color: #fff; }
+  .btn svg { width: 16px; height: 16px; }
+  button.btn { font-family: inherit; cursor: pointer; }
+  .btn.icon { padding: 8px 10px; }
+  .theme-toggle .i-sun, .dark .theme-toggle .i-moon, .framed .theme-toggle, .framed .print-pdf { display: none; }
+  .dark .theme-toggle .i-sun { display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips a { padding: 3px 11px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 500; text-decoration: none; }
+
+  section { padding-top: 8px; }
+  h2 { margin: 64px 0 20px; padding-top: 28px; border-top: 1px solid var(--border); font-size: 1.65rem; line-height: 1.25; letter-spacing: -.015em; scroll-margin-top: 16px; }
+  h2 .part { display: block; margin-bottom: 6px; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h3 { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 12px; font-size: 1.15rem; line-height: 1.4; }
+  h3 .num { flex: none; min-width: 26px; padding: 1px 7px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-size: 13px; text-align: center; }
+  h3 .tag { flex: none; padding: 1px 8px; border-radius: 7px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+  p, ul { margin: 0 0 14px; }
+  li { margin: 4px 0; }
+  ul { padding-left: 22px; }
+  strong { font-weight: 650; }
+  code { font-family: var(--mono); font-size: .86em; padding: .15em .4em; border-radius: 6px; background: var(--soft); border: 1px solid var(--border); }
+  pre code { padding: 0; border: 0; background: none; font-size: 13.5px; }
+
+  .source { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; color: var(--muted); }
+  .source svg { width: 15px; height: 15px; color: var(--accent); }
+  .callout { padding: 14px 18px; border-left: 3px solid var(--warn); border-radius: 0 10px 10px 0; background: var(--warn-soft); }
+
+  .code { position: relative; margin: 16px 0 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--code); }
+  .code pre { margin: 0; padding: 16px 18px; overflow-x: auto; line-height: 1.6; color: var(--text); }
+  .hljs-keyword, .hljs-type, .hljs-doctag, .hljs-variable.language_ { color: var(--hl-keyword); }
+  .hljs-title, .hljs-title.class_, .hljs-title.function_ { color: var(--hl-title); }
+  .hljs-literal, .hljs-number, .hljs-meta, .hljs-attr, .hljs-variable, .hljs-operator { color: var(--hl-const); }
+  .hljs-string, .hljs-regexp { color: var(--hl-string); }
+  .hljs-built_in, .hljs-symbol { color: var(--hl-builtin); }
+  .hljs-comment { color: var(--hl-comment); }
+  .code .copy { position: absolute; top: 8px; right: 8px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--muted); font: 12px var(--sans); cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .code:hover .copy, .code .copy:focus { opacity: 1; }
+  .console { margin: 12px 0 22px; border-radius: 12px; overflow: hidden; background: #0f1117; border: 1px solid #1f2330; }
+  .console-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #1f2330; }
+  .console-bar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+  .console-bar i:nth-child(2) { background: #febc2e; }
+  .console-bar i:nth-child(3) { background: #28c840; }
+  .console-bar span { margin-left: 8px; font-size: 12px; color: #8b91a5; }
+  .console pre { margin: 0; padding: 14px 18px; overflow-x: auto; color: #d6dae4; line-height: 1.6; }
+
+  figure { margin: 20px 0 24px; }
+  figure.diagram { padding: 20px; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
+  pre.mermaid { margin: 0; font: 12px/1.5 var(--mono); color: var(--muted); }
+  pre.mermaid[data-processed] { display: flex; justify-content: center; }
+  figure.image img { display: block; max-width: 100%; height: auto; margin: 0 auto; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  figcaption { margin-top: 8px; font-size: 13.5px; color: var(--muted); text-align: center; }
+
+  .table { margin: 16px 0 22px; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.5; }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--soft); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  @media (max-width: 960px) {
+    .layout { display: block; }
+    .sidebar { display: none; }
+    .content { padding: 32px 20px 80px; }
+    .toc-mobile { display: block; margin: 22px 0 0; border: 1px solid var(--border); border-radius: 12px; }
+    .toc-mobile summary { padding: 12px 16px; font-weight: 600; cursor: pointer; }
+    .toc-mobile .toc { padding: 0 8px 10px; }
+  }
+  /* Print and "Save as PDF": A4, colors as on screen (light mode), no heading left alone at a page bottom */
+  @page { size: A4; margin: 16mm 14mm; }
+  @media print {
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sidebar, .toc-mobile, .actions, .copy { display: none !important; }
+    .layout { display: block; }
+    .content { max-width: none; padding: 0; }
+    pre { white-space: pre-wrap; }
+    /* Denser than on screen: about half the pages */
+    body { font-size: 12.5px; line-height: 1.55; }
+    h1 { font-size: 24px; }
+    h2 { margin: 28px 0 12px; padding-top: 14px; font-size: 19px; }
+    h3 { margin: 18px 0 8px; font-size: 14.5px; }
+    p, ul { margin-bottom: 8px; }
+    pre code, .console pre { font-size: 11px; line-height: 1.45; }
+    .code pre, .console pre { padding: 10px 12px; }
+    .code, .console, figure, .table { margin: 10px 0 14px; }
+    figure.diagram { padding: 10px; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 10px; }
+    h2, h3 { break-after: avoid; }
+    .code, .console, figure, .table, h2, h3 { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <p class="label">Sommaire</p>
+    <nav class="toc" aria-label="Sommaire">
+      <ol>
+        <li><a href="#partie-1"><span>01</span>Analyse du code existant</a></li>
+        <li><a href="#partie-2"><span>02</span>Création des produits (Factory)</a></li>
+        <li><a href="#partie-3"><span>03</span>Configuration unique (Singleton)</a></li>
+        <li><a href="#partie-4"><span>04</span>Ancien système de paiement (Adapter)</a></li>
+        <li><a href="#partie-5"><span>05</span>Catalogue en arbre (Composite)</a></li>
+        <li><a href="#partie-6"><span>06</span>Changements d'état (Observer)</a></li>
+        <li><a href="#partie-7"><span>07</span>Challenge (Strategy)</a></li>
+        <li><a href="#partie-8"><span>08</span>Architecture en couches</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header>
+      <p class="eyebrow">Architectures Réactives et Microservices</p>
+      <h1>TP1 — Design Patterns : refactoring d'une application Java</h1>
+      <p class="authors">Mohamed Helmi Lakhder &amp; Oussama Bouchalah</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          Code source (VS Code)
+        </a>
+        <a class="btn" href="enonce/TP1_Design_Patterns_Refactoring.pdf" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          Énoncé (PDF)
+        </a>
+        <button class="btn print-pdf" type="button" title="Télécharger la documentation en PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+          Télécharger en PDF
+        </button>
+        <button class="btn icon theme-toggle" type="button" aria-label="Basculer entre mode clair et sombre" title="Mode clair / sombre">
+          <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+      </div>
+      <nav class="chips" aria-label="Patterns">
+        <a href="#partie-2">Factory</a><a href="#partie-3">Singleton</a><a href="#partie-4">Adapter</a><a href="#partie-5">Composite</a><a href="#partie-6">Observer</a><a href="#partie-7">Strategy</a>
+      </nav>
+      <details class="toc-mobile">
+        <summary>Sommaire</summary>
+        <nav class="toc">
+          <ol>
+            <li><a href="#partie-1"><span>01</span>Analyse du code existant</a></li>
+            <li><a href="#partie-2"><span>02</span>Création des produits (Factory)</a></li>
+            <li><a href="#partie-3"><span>03</span>Configuration unique (Singleton)</a></li>
+            <li><a href="#partie-4"><span>04</span>Ancien système de paiement (Adapter)</a></li>
+            <li><a href="#partie-5"><span>05</span>Catalogue en arbre (Composite)</a></li>
+            <li><a href="#partie-6"><span>06</span>Changements d'état (Observer)</a></li>
+            <li><a href="#partie-7"><span>07</span>Challenge (Strategy)</a></li>
+            <li><a href="#partie-8"><span>08</span>Architecture en couches</a></li>
+          </ol>
+        </nav>
+      </details>
+    </header>
+
+    <!-- ============================== PARTIE 1 ============================== -->
+    <section>
+      <h2 id="partie-1"><span class="part">Partie 1</span>Analyse du code existant</h2>
+
+      <h3><span class="num">1</span>Problèmes de conception</h3>
+      <ul>
+        <li><strong>Création directe avec <code>new</code></strong> : <code>OrderService</code> crée lui-même les produits, il est donc lié à la classe concrète.</li>
+        <li><strong>Cascade de <code>if / else</code> sur un texte</strong> : chaque nouveau type ajoute une branche.</li>
+        <li><strong>Le type n'est qu'un <code>String</code></strong> : un livre et un vêtement sont des objets de la même classe, sans comportement propre.</li>
+        <li><strong>Trop de responsabilités</strong> : <code>OrderService</code> choisit le type, crée le produit et gère la commande.</li>
+      </ul>
+
+      <h3><span class="num">2</span>Pourquoi ajouter un type rend le code difficile à maintenir</h3>
+      <p>Pour ajouter <code>FOOD</code>, il faut <strong>modifier <code>OrderService</code></strong> (une branche de plus), puis tout retester. Si d'autres classes créent aussi des produits, il faut recopier le même <code>if/else</code> partout, avec un risque d'oubli.</p>
+
+      <h3><span class="num">3</span>Principe mis à mal</h3>
+      <p>Le <strong>principe ouvert/fermé (OCP, Open-Closed Principle)</strong> : une classe doit être ouverte à l'extension mais fermée à la modification. Ici, ajouter un type oblige à modifier <code>OrderService</code>. Le SRP (une seule responsabilité) et le DIP (dépendre d'abstractions) sont aussi touchés.</p>
+
+      <h3><span class="num">4</span>Pattern proposé</h3>
+      <p><strong>Factory</strong> (Simple Factory) : une classe <code>ProductFactory</code> crée le bon produit selon son type, et chaque produit devient une classe qui implémente une interface <code>Product</code>.</p>
+
+      <h3><span class="num">5</span>Justification</h3>
+      <ul>
+        <li>Le problème porte sur la <strong>création des objets</strong> : on choisit donc un pattern de création.</li>
+        <li>Tous les <code>new</code> sont regroupés dans la fabrique. <code>OrderService</code> ne connaît plus que l'interface <code>Product</code>.</li>
+        <li>Ajouter un type = une nouvelle classe + un <code>case</code> dans la fabrique, <strong>sans toucher à <code>OrderService</code></strong>.</li>
+        <li>La Simple Factory est la version la plus simple qui résout le problème. Factory Method ou Abstract Factory seraient trop lourds ici.</li>
+      </ul>
+    </section>
+
+    <!-- ============================== PARTIE 2 ============================== -->
+    <section>
+      <h2 id="partie-2"><span class="part">Partie 2</span>Refactoring de la création des produits (Factory)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie2" target="_blank" rel="noopener"><code>partie2/</code></a></p>
+
+      <figure class="image">
+        <a href="docs/uml-partie2.png" target="_blank"><img src="docs/uml-partie2.png" alt="Diagramme UML de la Partie 2 (pattern Factory)"></a>
+        <figcaption>Diagramme UML de la Partie 2 (pattern Factory)</figcaption>
+      </figure>
+
+      <h3><span class="num">1</span>Interface <code>Product</code> avec <code>display()</code></h3>
+<div class="code"><pre><code class="language-java">public interface Product {
+    String getName();
+    double getPrice();
+    void display();
+}</code></pre></div>
+
+      <h3><span class="num">2</span>Classes <code>Book</code>, <code>Electronic</code> et <code>Clothing</code></h3>
+<div class="code"><pre><code class="language-java">public class Book implements Product {
+
+    private final String name;
+    private final double price;
+
+    public Book(String name, double price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    @Override
+    public String getName() { return name; }
+
+    @Override
+    public double getPrice() { return price; }
+
+    @Override
+    public void display() {
+        System.out.println("Book : " + name + " - " + price + " DT");
+    }
+}</code></pre></div>
+      <p><code>Electronic</code> et <code>Clothing</code> sont identiques ; seul le texte de <code>display()</code> change. Chaque classe a donc son propre affichage (polymorphisme).</p>
+
+      <h3><span class="num">3</span>Classe responsable de la création : <code>ProductFactory</code></h3>
+<div class="code"><pre><code class="language-java">public class ProductFactory {
+
+    private ProductFactory() { }
+
+    public static Product createProduct(String type, String name, double price) {
+        switch (type.toUpperCase()) {
+            case "BOOK":
+                return new Book(name, price);
+            case "ELECTRONIC":
+                return new Electronic(name, price);
+            case "CLOTHING":
+                return new Clothing(name, price);
+            case "FOOD":
+                return new Food(name, price);
+            default:
+                throw new IllegalArgumentException("Unknown product type: " + type);
+        }
+    }
+}</code></pre></div>
+      <p>C'est le <strong>seul endroit</strong> qui décide quelle classe créer. La méthode retourne un <code>Product</code> : l'appelant ne connaît pas la classe concrète.</p>
+
+      <h3><span class="num">4</span><code>OrderService</code> sans <code>new</code></h3>
+<div class="code"><pre><code class="language-java">public void createOrder(String type, String name, double price) {
+    Product product = ProductFactory.createProduct(type, name, price);
+    System.out.println("Order created for " + product.getName());
+}</code></pre></div>
+      <p>Le <code>if/else</code> et les <code>new</code> ont disparu : <code>OrderService</code> ne connaît que <code>Product</code> et <code>ProductFactory</code>.</p>
+
+      <h3><span class="num">5</span>Ajouter <code>Food</code> sans modifier <code>OrderService</code></h3>
+      <p>Il suffit d'écrire la classe <code>Food</code> (comme <code>Book</code>) et d'ajouter <code>case "FOOD"</code> dans la fabrique. <strong><code>OrderService</code> n'est pas modifié.</strong></p>
+
+      <h3><span class="num">6</span>Tester plusieurs créations</h3>
+<div class="code"><pre><code class="language-java">Product p = ProductFactory.createProduct("BOOK", "Design Patterns", 45);
+p.display();
+ProductFactory.createProduct("ELECTRONIC", "Laptop", 2500).display();
+ProductFactory.createProduct("CLOTHING", "Jacket", 180).display();
+ProductFactory.createProduct("FOOD", "Dates", 12.5).display();
+
+OrderService orderService = new OrderService();
+orderService.createOrder("BOOK", "Design Patterns", 45);
+orderService.createOrder("FOOD", "Dates", 12.5);</code></pre></div>
+      <p>Résultat de <code>partie2.Main</code> :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">Book : Design Patterns - 45.0 DT
+Electronic : Laptop - 2500.0 DT
+Clothing : Jacket - 180.0 DT
+Food : Dates - 12.5 DT
+Order created for Design Patterns
+Order created for Dates</code></pre></div>
+
+      <h3><span class="num">7</span>Pourquoi c'est plus flexible que la création directe</h3>
+      <ul>
+        <li><code>OrderService</code> dépend d'une <strong>interface</strong>, pas des classes concrètes : on peut ajouter ou modifier un produit sans le toucher (OCP, DIP).</li>
+        <li>La création est à <strong>un seul endroit</strong> : pour un nouveau type, on sait où intervenir.</li>
+        <li>Chaque produit est une <strong>vraie classe</strong> avec son propre comportement, au lieu d'un simple texte.</li>
+      </ul>
+    </section>
+
+    <!-- ============================== PARTIE 3 ============================== -->
+    <section>
+      <h2 id="partie-3"><span class="part">Partie 3</span>Instance unique pour la configuration (Singleton)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie3" target="_blank" rel="noopener"><code>partie3/</code></a></p>
+      <p class="callout"><strong>Problème :</strong> avec un constructeur <code>public</code>, chaque composant peut créer sa propre configuration, et elles peuvent être différentes. <strong>Le Singleton</strong> garantit qu'il n'existe <strong>qu'une seule instance</strong>, accessible partout.</p>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    class ApplicationConfig {
+        &lt;&lt;Singleton&gt;&gt;
+        -ApplicationConfig instance$
+        -String databaseUrl
+        -String applicationName
+        -ApplicationConfig()
+        +getInstance()$ ApplicationConfig
+        +getDatabaseUrl() String
+        +setDatabaseUrl(String databaseUrl) void
+        +getApplicationName() String
+        +setApplicationName(String applicationName) void
+    }
+    ApplicationConfig --&gt; "0..1" ApplicationConfig : instance unique</pre></figure>
+
+      <h3><span class="num">1</span>Modifier le constructeur et l'accès à l'instance</h3>
+<div class="code"><pre><code class="language-java">private static ApplicationConfig instance;   // l'unique instance
+
+private ApplicationConfig() {                // avant : public
+}</code></pre></div>
+      <p>Le constructeur devient <strong><code>private</code></strong> : <code>new ApplicationConfig()</code> ne compile plus en dehors de la classe.</p>
+
+      <h3><span class="num">2</span>Implémenter <code>getInstance()</code></h3>
+<div class="code"><pre><code class="language-java">public static synchronized ApplicationConfig getInstance() {
+    if (instance == null) {
+        instance = new ApplicationConfig();
+    }
+    return instance;
+}</code></pre></div>
+      <ul>
+        <li>Au premier appel, l'objet est créé ; ensuite, on retourne <strong>toujours le même</strong>.</li>
+        <li><code>synchronized</code> empêche deux threads de créer deux instances en même temps.</li>
+      </ul>
+
+      <h3><span class="num">3</span>Vérifier que <code>c1</code> et <code>c2</code> sont le même objet</h3>
+<div class="code"><pre><code class="language-java">ApplicationConfig c1 = ApplicationConfig.getInstance();
+ApplicationConfig c2 = ApplicationConfig.getInstance();
+System.out.println(c1 == c2);
+
+c1.setApplicationName("INSAT Shop");
+System.out.println(c2.getApplicationName());</code></pre></div>
+      <p>Résultat de <code>partie3.Main</code> :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">true
+INSAT Shop</code></pre></div>
+      <p><code>true</code> : <code>c1</code> et <code>c2</code> désignent le même objet. Le nom modifié via <code>c1</code> se lit via <code>c2</code>.</p>
+
+      <h3><span class="num">4</span>Contexte où ce pattern est pertinent</h3>
+      <p>Quand un objet doit être <strong>unique et partagé</strong> par toute l'application : configuration, journal (logger), pool de connexions à la base, cache.</p>
+      <p>Précaution : c'est une sorte de variable globale, à utiliser seulement si l'unicité est vraiment nécessaire. En microservices, il est unique <strong>par programme</strong> (par JVM), pas pour tout le système.</p>
+    </section>
+
+    <!-- ============================== PARTIE 4 ============================== -->
+    <section>
+      <h2 id="partie-4"><span class="part">Partie 4</span>Intégration d'un ancien système de paiement (Adapter)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie4" target="_blank" rel="noopener"><code>partie4/</code></a></p>
+      <p class="callout"><strong>Problème :</strong> le client attend <code>PaymentService.pay()</code>, mais l'ancien système propose <code>makePayment()</code>, et il n'implémente pas <code>PaymentService</code>. <strong>L'Adapter</strong> rend compatibles ces deux interfaces sans modifier ni le client ni l'ancien système.</p>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    direction LR
+    class Main {
+        +main(String[] args)$ void
+    }
+    class PaymentService {
+        &lt;&lt;interface&gt;&gt;
+        +pay(double amount) void
+    }
+    class PaymentAdapter {
+        -OldPaymentSystem oldPaymentSystem
+        +PaymentAdapter(OldPaymentSystem oldPaymentSystem)
+        +pay(double amount) void
+    }
+    class OldPaymentSystem {
+        +makePayment(double value) void
+    }
+    Main --&gt; PaymentService : Client utilise Target
+    PaymentService &lt;|.. PaymentAdapter : Adapter
+    PaymentAdapter --&gt; OldPaymentSystem : Adaptee</pre></figure>
+
+      <h3><span class="num">1</span>Classe intermédiaire : <code>PaymentAdapter</code></h3>
+<div class="code"><pre><code class="language-java">public class PaymentAdapter implements PaymentService {
+
+    private final OldPaymentSystem oldPaymentSystem;
+
+    public PaymentAdapter(OldPaymentSystem oldPaymentSystem) {
+        this.oldPaymentSystem = oldPaymentSystem;
+    }
+
+    @Override
+    public void pay(double amount) {
+        oldPaymentSystem.makePayment(amount);
+    }
+}</code></pre></div>
+      <p>L'adaptateur a la forme attendue par le client (<code>implements PaymentService</code>) et <strong>traduit</strong> <code>pay()</code> en <code>makePayment()</code>.</p>
+
+      <h3><span class="num">2</span>Code client indépendant de l'ancien système</h3>
+<div class="code"><pre><code class="language-java">PaymentService payment = new PaymentAdapter(new OldPaymentSystem());
+payment.pay(250);</code></pre></div>
+      <p>Le client ne manipule que <code>PaymentService</code> et n'appelle jamais <code>makePayment()</code>. <code>OldPaymentSystem</code> n'apparaît qu'à la ligne de création.</p>
+
+      <h3><span class="num">3</span>Tester un paiement de 250</h3>
+      <p>Résultat de <code>partie4.Main</code> :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">Payment : 250.0</code></pre></div>
+      <p>L'appel <code>pay(250)</code> est bien arrivé dans <code>makePayment()</code> de l'ancien système.</p>
+
+      <h3><span class="num">4</span>Pourquoi ne pas modifier <code>OldPaymentSystem</code></h3>
+      <ul>
+        <li>On n'a souvent <strong>pas le droit ou pas le code source</strong> (bibliothèque externe, fournisseur).</li>
+        <li><strong>Il fonctionne</strong> et d'autres programmes l'utilisent peut-être : le modifier risque de les casser.</li>
+        <li><strong>OCP</strong> : on ajoute une classe au lieu de modifier un code qui marche.</li>
+        <li>Si on abandonne l'ancien système plus tard, seul l'adaptateur change ; le client ne bouge pas.</li>
+      </ul>
+    </section>
+
+    <!-- ============================== PARTIE 5 ============================== -->
+    <section>
+      <h2 id="partie-5"><span class="part">Partie 5</span>Catalogue sous forme d'arbre (Composite)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie5" target="_blank" rel="noopener"><code>partie5/</code></a></p>
+      <p class="callout"><strong>Problème :</strong> un catalogue contient des catégories, qui contiennent des produits ou d'autres catégories. <strong>Le Composite</strong> permet de traiter un produit et une catégorie <strong>de la même manière</strong>.</p>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    direction TB
+    class CatalogComponent {
+        &lt;&lt;interface&gt;&gt;
+        +display(String indent) void
+    }
+    class Product {
+        -String name
+        -double price
+        +display(String indent) void
+    }
+    class Category {
+        -String name
+        -List~CatalogComponent~ children
+        +add(CatalogComponent component) void
+        +remove(CatalogComponent component) void
+        +display(String indent) void
+    }
+    CatalogComponent &lt;|.. Product : Leaf
+    CatalogComponent &lt;|.. Category : Composite
+    Category o-- "0..*" CatalogComponent : children</pre></figure>
+      <p>Les deux classes <strong>sont</strong> des <code>CatalogComponent</code>. <code>Product</code> est une <strong>feuille</strong> : il ne contient rien. <code>Category</code> est un <strong>composite</strong> : elle <strong>contient</strong> une liste de <code>CatalogComponent</code>.</p>
+
+      <h3><span class="num">1</span>Abstraction commune</h3>
+<div class="code"><pre><code class="language-java">public interface CatalogComponent {
+    void display(String indent);
+}</code></pre></div>
+
+      <h3><span class="num">2</span><code>Product</code> : élément individuel</h3>
+<div class="code"><pre><code class="language-java">public class Product implements CatalogComponent {
+
+    private final String name;
+    private final double price;
+
+    public Product(String name, double price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    @Override
+    public void display(String indent) {
+        System.out.println(indent + "- " + name + " (" + price + " DT)");
+    }
+}</code></pre></div>
+
+      <h3><span class="num">3 et 4</span><code>Category</code> : contient des produits et/ou des catégories</h3>
+<div class="code"><pre><code class="language-java">public class Category implements CatalogComponent {
+
+    private final String name;
+    private final List&lt;CatalogComponent&gt; children = new ArrayList&lt;&gt;();
+
+    public Category(String name) {
+        this.name = name;
+    }
+
+    public void add(CatalogComponent component) {
+        children.add(component);
+    }
+
+    public void remove(CatalogComponent component) {
+        children.remove(component);
+    }
+    ...
+}</code></pre></div>
+      <p>La liste est de type <code>List&lt;CatalogComponent&gt;</code> : <code>add()</code> accepte donc un produit <strong>ou</strong> une autre catégorie.</p>
+
+      <h3><span class="num">5</span><code>display()</code> affiche toute l'arborescence</h3>
+<div class="code"><pre><code class="language-java">@Override
+public void display(String indent) {
+    System.out.println(indent + "+ " + name);
+    for (CatalogComponent child : children) {
+        child.display(indent + "    ");
+    }
+}</code></pre></div>
+      <p>Une catégorie affiche son nom, puis demande à chaque enfant de s'afficher avec 4 espaces de plus. Un enfant catégorie fait de même (récursion). Un produit affiche juste sa ligne, et la récursion s'arrête là.</p>
+
+      <h3><span class="num">6</span>Test à partir de l'objet Catalogue</h3>
+      <p>Le <code>Main</code> construit <code>Catalogue</code> → <code>Books</code>, <code>Electronics</code>, <code>Clothing</code> → produits, puis appelle <code>catalogue.display("")</code>. Résultat de <code>partie5.Main</code> :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">+ Catalogue
+    + Books
+        - Book 1 (45.0 DT)
+        - Book 2 (38.5 DT)
+    + Electronics
+        - Laptop (2500.0 DT)
+        - Smartphone (1200.0 DT)
+    + Clothing
+        - Shirt (60.0 DT)
+        - Jacket (180.0 DT)</code></pre></div>
+    </section>
+
+    <!-- ============================== PARTIE 6 ============================== -->
+    <section>
+      <h2 id="partie-6"><span class="part">Partie 6</span>Notification des changements d'état (Observer)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie6" target="_blank" rel="noopener"><code>partie6/</code></a></p>
+      <p class="callout"><strong>Problème :</strong> quand une commande change d'état, l'e-mail, le stock et le journal doivent être prévenus. <strong>L'Observer</strong> permet à <code>Order</code> de les prévenir automatiquement <strong>sans les connaître</strong>.</p>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    class Subject {
+        &lt;&lt;interface&gt;&gt;
+        +attach(Observer observer) void
+        +detach(Observer observer) void
+        +notifyObservers() void
+    }
+    class Observer {
+        &lt;&lt;interface&gt;&gt;
+        +update(String status) void
+    }
+    class Order {
+        -String status
+        -List~Observer~ observers
+        +setStatus(String status) void
+        +getStatus() String
+    }
+    class EmailService {
+        +update(String status) void
+    }
+    class StockService {
+        +update(String status) void
+    }
+    class LoggerService {
+        +update(String status) void
+    }
+    Subject &lt;|.. Order : ConcreteSubject
+    Order o-- "0..*" Observer : observers
+    Observer &lt;|.. EmailService : Notification
+    Observer &lt;|.. StockService : Gestion du stock
+    Observer &lt;|.. LoggerService : Journalisation</pre></figure>
+
+      <h3><span class="num">6 et 7</span>Abstractions <code>Observer</code> et <code>Subject</code></h3>
+<div class="code"><pre><code class="language-java">public interface Observer {
+    void update(String status);
+}
+
+public interface Subject {
+    void attach(Observer observer);
+    void detach(Observer observer);
+    void notifyObservers();
+}</code></pre></div>
+
+      <h3><span class="num">8 et 10</span><code>Order</code>, le sujet observé, notifie à chaque changement</h3>
+<div class="code"><pre><code class="language-java">public class Order implements Subject {
+
+    private String status = "CREATED";
+    private final List&lt;Observer&gt; observers = new ArrayList&lt;&gt;();
+
+    @Override
+    public void attach(Observer observer) { observers.add(observer); }
+
+    @Override
+    public void detach(Observer observer) { observers.remove(observer); }
+
+    @Override
+    public void notifyObservers() {
+        for (Observer observer : observers) {
+            observer.update(status);
+        }
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+        notifyObservers();          // notification automatique
+    }
+
+    public String getStatus() { return status; }
+}</code></pre></div>
+      <p><code>Order</code> ne connaît que l'interface <code>Observer</code> : on n'y trouve ni <code>EmailService</code>, ni <code>StockService</code>, ni <code>LoggerService</code>.</p>
+
+      <h3><span class="num">9</span>Les observateurs</h3>
+<div class="code"><pre><code class="language-java">public class EmailService implements Observer {
+
+    @Override
+    public void update(String status) {
+        System.out.println("EmailService : email sent to customer, order status = " + status);
+    }
+}</code></pre></div>
+      <p><code>StockService</code> et <code>LoggerService</code> sont écrits de la même façon (l'envoi réel est simulé par un affichage).</p>
+
+      <h3><span class="num">11</span>Test CREATED → SHIPPED</h3>
+<div class="code"><pre><code class="language-java">Order order = new Order();
+order.attach(new EmailService());
+order.attach(new StockService());
+order.attach(new LoggerService());
+System.out.println("Initial status Before Update : " + order.getStatus());
+order.setStatus("SHIPPED");</code></pre></div>
+      <p>Résultat de <code>partie6.Main</code> :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">Initial status Before Update : CREATED
+EmailService : email sent to customer, order status = SHIPPED
+StockService : stock updated, order status = SHIPPED
+LoggerService : [LOG] order status changed to SHIPPED</code></pre></div>
+
+      <h3><span class="tag">Question</span>Et si <code>Order</code> appelait directement <code>emailService.update()</code>, etc. ?</h3>
+<div class="code"><pre><code class="language-java">public class Order {
+    private String status = "CREATED";
+    private EmailService emailService = new EmailService();
+    private StockService stockService = new StockService();
+    private LoggerService loggerService = new LoggerService();
+
+    public void setStatus(String status) {
+        this.status = status;
+        emailService.update(status);
+        stockService.update(status);
+        loggerService.update(status);
+    }
+}</code></pre></div>
+      <ul>
+        <li><strong>Couplage fort</strong> : <code>Order</code> dépend de chaque service. Si <code>EmailService</code> renomme <code>update()</code>, il faut modifier <code>Order</code>.</li>
+        <li><strong>OCP violé</strong> : ajouter un service (SMS) ou en retirer un oblige à modifier <code>Order</code>.</li>
+        <li><strong>Pas de souplesse</strong> : impossible d'abonner ou de désabonner un service pendant l'exécution.</li>
+        <li><strong>Tests difficiles</strong> : tester un changement d'état enverrait de vrais e-mails.</li>
+      </ul>
+    </section>
+
+    <!-- ============================== PARTIE 7 ============================== -->
+    <section>
+      <h2 id="partie-7"><span class="part">Partie 7</span>Challenge : choisir le pattern adapté (Strategy)</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie7" target="_blank" rel="noopener"><code>partie7/</code></a></p>
+      <p>Code initial :</p>
+<div class="code"><pre><code class="language-java">public void send(String type, String message) {
+    if (type.equals("EMAIL")) {
+        System.out.println("Sending Email : " + message);
+    }
+    else if (type.equals("SMS")) {
+        System.out.println("Sending SMS : " + message);
+    }
+    else if (type.equals("PUSH")) {
+        System.out.println("Sending Push Notification : " + message);
+    }
+}</code></pre></div>
+
+      <h3><span class="num">1</span>Problème de conception</h3>
+      <ul>
+        <li>Une <strong>cascade de <code>if/else</code></strong> sur un texte choisit la façon d'envoyer : ajouter WhatsApp oblige à <strong>modifier</strong> la classe (OCP violé).</li>
+        <li>Une seule méthode contient le code de <strong>tous</strong> les moyens d'envoi (SRP).</li>
+        <li>Un type inconnu est <strong>ignoré en silence</strong>.</li>
+      </ul>
+
+      <h3><span class="num">2</span>Pattern choisi : Strategy</h3>
+      <ul>
+        <li>On a une <strong>famille d'algorithmes</strong> (les façons d'envoyer) interchangeables. Strategy met chacun dans sa propre classe, derrière une interface commune.</li>
+        <li>Rôles : <code>Notification</code> = Strategy, <code>EmailNotification</code>… = ConcreteStrategy, <code>NotificationService</code> = Context.</li>
+        <li>Pas <strong>Factory</strong> (on ne veut pas créer mais faire varier un comportement), ni <strong>Observer</strong> (on envoie par <strong>un</strong> moyen, pas à tous les abonnés), ni <strong>Adapter</strong> (pas d'interface incompatible).</li>
+      </ul>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    direction LR
+    class NotificationService {
+        -Notification notification
+        +NotificationService(Notification notification)
+        +setNotification(Notification notification) void
+        +send(String message) void
+    }
+    class Notification {
+        &lt;&lt;interface&gt;&gt;
+        +send(String message) void
+    }
+    NotificationService --&gt; Notification : Context utilise Strategy
+    Notification &lt;|.. EmailNotification : ConcreteStrategy
+    Notification &lt;|.. SmsNotification : ConcreteStrategy
+    Notification &lt;|.. PushNotification : ConcreteStrategy
+    Notification &lt;|.. WhatsAppNotification : ConcreteStrategy</pre></figure>
+
+      <h3><span class="num">3</span>Code refactorisé</h3>
+<div class="code"><pre><code class="language-java">public interface Notification {
+    void send(String message);
+}
+
+public class EmailNotification implements Notification {
+    @Override
+    public void send(String message) {
+        System.out.println("Sending Email : " + message);
+    }
+}
+// SmsNotification et PushNotification : même forme
+
+public class NotificationService {
+
+    private Notification notification;
+
+    public NotificationService(Notification notification) {
+        this.notification = notification;
+    }
+
+    public void setNotification(Notification notification) {
+        this.notification = notification;
+    }
+
+    public void send(String message) {
+        notification.send(message);      // plus aucun if/else
+    }
+}</code></pre></div>
+
+      <h3><span class="num">4</span>Ajouter <code>WhatsAppNotification</code> sans modifier la classe principale</h3>
+<div class="code"><pre><code class="language-java">public class WhatsAppNotification implements Notification {
+    @Override
+    public void send(String message) {
+        System.out.println("Sending WhatsApp : " + message);
+    }
+}</code></pre></div>
+      <p><strong><code>NotificationService</code> n'est pas modifié.</strong> Résultat de <code>partie7.Main</code>, qui envoie le même message par les 4 moyens :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">Sending Email : Your order has been shipped
+Sending SMS : Your order has been shipped
+Sending Push Notification : Your order has been shipped
+Sending WhatsApp : Your order has been shipped</code></pre></div>
+
+      <h3><span class="num">5</span>Ancienne et nouvelle architecture</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Critère</th><th>Avant (<code>if/else</code>)</th><th>Après (Strategy)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Modularité</strong></td><td>Tout dans une seule méthode</td><td>Une classe par moyen d'envoi</td></tr>
+            <tr><td><strong>Couplage</strong></td><td>Le service contient le code de tous les moyens</td><td>Le service ne dépend que de l'interface <code>Notification</code></td></tr>
+            <tr><td><strong>Maintenabilité</strong></td><td>Ajouter WhatsApp = modifier du code qui marche</td><td>Ajouter WhatsApp = écrire une nouvelle classe</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="num">6</span>Diagramme d'architecture</h3>
+      <figure class="image">
+        <a href="docs/architecture.png" target="_blank"><img src="docs/architecture.png" alt="Diagramme d'architecture en couches"></a>
+        <figcaption>Diagramme d'architecture en couches</figcaption>
+      </figure>
+      <p>Les dépendances vont <strong>vers l'intérieur</strong> (Présentation → Application → Domaine). L'infrastructure <strong>implémente</strong> des interfaces définies par les couches internes : on peut la remplacer sans toucher au métier.</p>
+
+      <h3><span class="num">7</span>Place des patterns étudiés dans cette architecture</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Pattern</th><th>Couche</th><th>Rôle</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Factory</strong></td><td>Domaine</td><td>Crée les produits pour <code>OrderService</code></td></tr>
+            <tr><td><strong>Singleton</strong></td><td>Infrastructure</td><td>Configuration unique de l'application</td></tr>
+            <tr><td><strong>Adapter</strong></td><td>Infrastructure</td><td>Branche l'ancien paiement sur <code>PaymentService</code></td></tr>
+            <tr><td><strong>Composite</strong></td><td>Domaine</td><td>Catalogue en arbre</td></tr>
+            <tr><td><strong>Observer</strong></td><td>Domaine (<code>Order</code>) + observateurs en Application/Infrastructure</td><td>Prévient les services quand une commande change d'état</td></tr>
+            <tr><td><strong>Strategy</strong></td><td>Application (interface) + Infrastructure (classes d'envoi)</td><td>Moyens de notification interchangeables</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="tag">Question</span>Pourquoi un Design Pattern n'est pas une architecture complète ?</h3>
+      <ul>
+        <li>Un pattern résout <strong>un problème précis</strong>, sur quelques classes (créer des objets, adapter une interface…).</li>
+        <li>Une architecture organise <strong>toute l'application</strong> : couches, responsabilités, sens des dépendances, clients.</li>
+        <li>Une architecture <strong>combine plusieurs patterns</strong>, chacun là où il résout un problème. Utiliser un pattern sans problème à résoudre complique le code inutilement.</li>
+      </ul>
+    </section>
+
+    <!-- ============================== PARTIE 8 ============================== -->
+    <section>
+      <h2 id="partie-8"><span class="part">Partie 8</span>Question d'architecture (architecture en couches)</h2>
+
+<figure class="diagram"><pre class="mermaid">flowchart TB
+    C["Clients : application Web, application mobile, autres applications"]
+    P["Couche Présentation&lt;br/&gt;reçoit les demandes des clients"]
+    A["Couche Application&lt;br/&gt;organise les cas d'utilisation"]
+    D["Couche Domaine&lt;br/&gt;le métier : produits, commandes, catalogue"]
+    I["Couche Infrastructure&lt;br/&gt;détails techniques : paiement, e-mail, configuration"]
+
+    C --&gt; P
+    P --&gt; A
+    A --&gt; D
+    I -.-&gt;|"implémente les interfaces de"| A
+    I -.-&gt;|"implémente les interfaces de"| D</pre></figure>
+
+      <div class="table">
+        <table>
+          <thead><tr><th>Couche</th><th>Rôle</th><th>Dépend de</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Présentation</strong></td><td>Reçoit les demandes des clients (API REST, contrôleurs)</td><td>Application</td></tr>
+            <tr><td><strong>Application</strong></td><td>Organise les cas d'utilisation (commander, payer, notifier)</td><td>Domaine</td></tr>
+            <tr><td><strong>Domaine</strong></td><td>Le métier : produits, commandes, catalogue</td><td>Rien</td></tr>
+            <tr><td><strong>Infrastructure</strong></td><td>Détails techniques : paiement, e-mail, configuration</td><td>Application et Domaine (implémente leurs interfaces)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Dans quelle couche placer chaque élément ?</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Élément</th><th>Couche</th><th>Pourquoi</th></tr></thead>
+          <tbody>
+            <tr><td><code>Product</code></td><td>Domaine</td><td>Objet métier</td></tr>
+            <tr><td><code>ProductFactory</code></td><td>Domaine</td><td>Crée les objets du domaine</td></tr>
+            <tr><td><code>Order</code></td><td>Domaine</td><td>Objet métier (commande et son état)</td></tr>
+            <tr><td><code>OrderService</code></td><td>Application</td><td>Organise le cas « passer une commande »</td></tr>
+            <tr><td><code>PaymentAdapter</code></td><td>Infrastructure</td><td>Lien avec un système externe</td></tr>
+            <tr><td><code>EmailService</code></td><td>Infrastructure</td><td>Envoi d'e-mails : détail technique</td></tr>
+            <tr><td><code>ApplicationConfig</code></td><td>Infrastructure</td><td>Paramètres techniques</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>L'interface <code>PaymentService</code> est dans l'<strong>Application</strong> (c'est <code>OrderService</code> qui en a besoin), et <code>Observer</code> dans le <strong>Domaine</strong> (c'est <code>Order</code> qui prévient). L'infrastructure les implémente : elle dépend des couches internes, jamais l'inverse.</p>
+
+      <h3>Plusieurs types de clients</h3>
+      <p>L'application Web, l'application mobile et les autres clients passent tous par la <strong>couche Présentation</strong> (par exemple une API REST commune). Ils réutilisent les mêmes couches Application et Domaine : les règles métier sont écrites <strong>une seule fois</strong>, et un nouveau client ne demande qu'un ajout dans la Présentation.</p>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script>
+  hljs.highlightAll();
+
+  // Copy button on code blocks
+  document.querySelectorAll(".code").forEach(function (block) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copier";
+    btn.onclick = function () {
+      navigator.clipboard.writeText(block.querySelector("code").innerText).then(function () {
+        btn.textContent = "Copié";
+        setTimeout(function () { btn.textContent = "Copier"; }, 1500);
+      });
+    };
+    block.appendChild(btn);
+  });
+
+  // Highlight the current part in the sidebar
+  var links = Array.prototype.slice.call(document.querySelectorAll(".sidebar .toc a"));
+  var parts = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+  function onScroll() {
+    var current = 0;
+    parts.forEach(function (part, i) { if (part.getBoundingClientRect().top < 140) current = i; });
+    links.forEach(function (a, i) { a.classList.toggle("active", i === current); });
+  }
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  // Close the mobile table of contents after choosing a part
+  document.querySelectorAll(".toc-mobile a").forEach(function (a) {
+    a.addEventListener("click", function () { document.querySelector(".toc-mobile").open = false; });
+  });
+
+  // Light / dark mode: toggle button, changes made by the RT5 site (storage event), system changes
+  function refreshTheme() {
+    var wasDark = document.documentElement.classList.contains("dark");
+    applyTheme();
+    if (document.documentElement.classList.contains("dark") !== wasDark) document.dispatchEvent(new Event("themechange"));
+  }
+  document.querySelector(".theme-toggle").addEventListener("click", function () {
+    var next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    refreshTheme();
+  });
+  addEventListener("storage", function (e) { if (e.key === "theme") refreshTheme(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshTheme);
+</script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs";
+
+  const diagrams = [...document.querySelectorAll(".mermaid")];
+  const sources = diagrams.map((el) => el.textContent);
+  let renders = 0;
+
+  // Draws every diagram in the current theme (again after each theme change).
+  async function renderDiagrams(dark = document.documentElement.classList.contains("dark")) {
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });
+    renders++;
+    for (const [i, el] of diagrams.entries()) {
+      try {
+        const { svg } = await mermaid.render(`diagram-${renders}-${i}`, sources[i]);
+        el.innerHTML = svg;
+        el.setAttribute("data-processed", "true");
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  document.addEventListener("themechange", () => renderDiagrams());
+  renderDiagrams();
+
+  // PDF: the browser's "Save as PDF", with light diagrams like the rest of the printed page.
+  // Also called by the RT5 site's PDF button.
+  window.printDoc = async () => {
+    const dark = document.documentElement.classList.contains("dark");
+    if (dark) await renderDiagrams(false);
+    window.print();
+    if (dark) await renderDiagrams(true);
+  };
+  document.querySelector(".print-pdf").addEventListener("click", () => window.printDoc());
+</script>
+</body>
+</html>
