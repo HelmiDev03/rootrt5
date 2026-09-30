@@ -174,7 +174,7 @@
       <h1>TP1 — Design Patterns : refactoring d'une application Java</h1>
       <p class="authors">Mohamed Helmi Lakhder &amp; Oussama Bouchalah</p>
       <div class="actions">
-        <a class="btn primary" href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1" target="_blank" rel="noopener">
+        <a class="btn primary" href="../tp1#code" target="_top">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
           Code source (VS Code)
         </a>
@@ -244,7 +244,7 @@
     <!-- ============================== PARTIE 2 ============================== -->
     <section>
       <h2 id="partie-2"><span class="part">Partie 2</span>Refactoring de la création des produits (Factory)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie2" target="_blank" rel="noopener"><code>partie2/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie2" target="_top"><code>partie2/</code></a></p>
 
       <figure class="image">
         <a href="docs/uml-partie2.png" target="_blank"><img src="docs/uml-partie2.png" alt="Diagramme UML de la Partie 2 (pattern Factory)"></a>
@@ -343,7 +343,7 @@ Order created for Dates</code></pre></div>
     <!-- ============================== PARTIE 3 ============================== -->
     <section>
       <h2 id="partie-3"><span class="part">Partie 3</span>Instance unique pour la configuration (Singleton)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie3" target="_blank" rel="noopener"><code>partie3/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie3" target="_top"><code>partie3/</code></a></p>
       <p class="callout"><strong>Problème :</strong> avec un constructeur <code>public</code>, chaque composant peut créer sa propre configuration, et elles peuvent être différentes. <strong>Le Singleton</strong> garantit qu'il n'existe <strong>qu'une seule instance</strong>, accessible partout.</p>
 
 <figure class="diagram"><pre class="mermaid">classDiagram
@@ -400,7 +400,7 @@ INSAT Shop</code></pre></div>
     <!-- ============================== PARTIE 4 ============================== -->
     <section>
       <h2 id="partie-4"><span class="part">Partie 4</span>Intégration d'un ancien système de paiement (Adapter)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie4" target="_blank" rel="noopener"><code>partie4/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie4" target="_top"><code>partie4/</code></a></p>
       <p class="callout"><strong>Problème :</strong> le client attend <code>PaymentService.pay()</code>, mais l'ancien système propose <code>makePayment()</code>, et il n'implémente pas <code>PaymentService</code>. <strong>L'Adapter</strong> rend compatibles ces deux interfaces sans modifier ni le client ni l'ancien système.</p>
 
 <figure class="diagram"><pre class="mermaid">classDiagram
@@ -462,7 +462,7 @@ payment.pay(250);</code></pre></div>
     <!-- ============================== PARTIE 5 ============================== -->
     <section>
       <h2 id="partie-5"><span class="part">Partie 5</span>Catalogue sous forme d'arbre (Composite)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie5" target="_blank" rel="noopener"><code>partie5/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie5" target="_top"><code>partie5/</code></a></p>
       <p class="callout"><strong>Problème :</strong> un catalogue contient des catégories, qui contiennent des produits ou d'autres catégories. <strong>Le Composite</strong> permet de traiter un produit et une catégorie <strong>de la même manière</strong>.</p>
 
 <figure class="diagram"><pre class="mermaid">classDiagram
@@ -558,7 +558,7 @@ public void display(String indent) {
     <!-- ============================== PARTIE 6 ============================== -->
     <section>
       <h2 id="partie-6"><span class="part">Partie 6</span>Notification des changements d'état (Observer)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie6" target="_blank" rel="noopener"><code>partie6/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie6" target="_top"><code>partie6/</code></a></p>
       <p class="callout"><strong>Problème :</strong> quand une commande change d'état, l'e-mail, le stock et le journal doivent être prévenus. <strong>L'Observer</strong> permet à <code>Order</code> de les prévenir automatiquement <strong>sans les connaître</strong>.</p>
 
 <figure class="diagram"><pre class="mermaid">classDiagram
@@ -680,7 +680,7 @@ LoggerService : [LOG] order status changed to SHIPPED</code></pre></div>
     <!-- ============================== PARTIE 7 ============================== -->
     <section>
       <h2 id="partie-7"><span class="part">Partie 7</span>Challenge : choisir le pattern adapté (Strategy)</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="https://github1s.com/HelmiDev03/rootrt5/tree/main/ArchitecturesR%C3%A9activesetMicroservices/TP1/src/main/java/tn/insat/tp1/partie7" target="_blank" rel="noopener"><code>partie7/</code></a></p>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp1#code/src/main/java/tn/insat/tp1/partie7" target="_top"><code>partie7/</code></a></p>
       <p>Code initial :</p>
 <div class="code"><pre><code class="language-java">public void send(String type, String message) {
     if (type.equals("EMAIL")) {

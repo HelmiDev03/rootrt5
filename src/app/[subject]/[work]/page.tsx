@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Room } from "@/components/room";
-import { DOC_FILE, getSubjects, getWork } from "@/lib/content";
+import { DOC_FILE, getSubjects, getWork, listWorkFiles } from "@/lib/content";
 import { EDITING_ENABLED } from "@/lib/edit-auth";
 
 export function generateStaticParams() {
@@ -31,7 +31,8 @@ export default async function WorkPage({ params }: PageProps<"/[subject]/[work]"
         folder: work.folder,
         title: work.title,
         docUrl: work.hasDoc ? `${base}/${DOC_FILE}` : null,
-        codeUrl: work.codeUrl,
+        base,
+        files: listWorkFiles(work.dir),
         githubUrl: work.githubUrl,
         statement: work.statement.map((file) => ({
           name: file.split("/").slice(1).join("/"), // path inside the enonce folder

@@ -13,7 +13,6 @@ export type Work = {
   hasDoc: boolean;
   /** Statement files (énoncé): everything in the work's "enonce" folder, relative to the work folder. */
   statement: string[];
-  codeUrl: string;
   githubUrl: string;
 };
 
@@ -36,9 +35,8 @@ function contentPath(...parts: string[]): string {
 
 // Top-level folders that belong to the Next.js app rather than to a subject.
 const APP_DIRS = new Set(["node_modules", "public", "src"]);
-// Build output and dependencies are never served from a work folder.
+// Build output and dependencies are never shown or served from a work folder.
 const SKIPPED_DIRS = new Set(["node_modules", "target", "build", "dist", "out", "bin", "obj", "__pycache__", "venv"]);
-const SERVED_EXTENSIONS = new Set([".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".pdf"]);
 
 // The statement of a work (one or several files of any type) goes in its "enonce" folder;
 // "Enonce" or "énoncé" work too.
@@ -68,10 +66,10 @@ function titleFromFolder(folder: string): string {
   return folder.replace(/[_-]+/g, " ").replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2");
 }
 
-function githubLink(host: string, relPath: string): string {
+function githubLink(relPath: string): string {
   const { owner, repo, branch } = site.github;
   const encoded = relPath.split("/").map(encodeURIComponent).join("/");
-  return `https://${host}/${owner}/${repo}/tree/${branch}/${encoded}`;
+  return `https://github.com/${owner}/${repo}/tree/${branch}/${encoded}`;
 }
 
 function decodeEntities(text: string): string {
@@ -115,8 +113,7 @@ function readWork(subjectFolder: string, folder: string): Work {
     authors: meta?.authors,
     hasDoc,
     statement: statementFiles(dir),
-    codeUrl: githubLink("github1s.com", `${subjectFolder}/${folder}`),
-    githubUrl: githubLink("github.com", `${subjectFolder}/${folder}`),
+    githubUrl: githubLink(`${subjectFolder}/${folder}`),
   };
 }
 
@@ -146,24 +143,21 @@ export function getWork(subjectSlug: string, workSlug: string) {
 }
 
 /**
- * Files of a work served by the site (doc.html, its images, the statement…), relative to the work folder.
- * Inside the statement folder every file is served, whatever its type.
+ * Files of a work, relative to its folder: shown in the code view and served by the site.
+ * Hidden files and build output (target/, node_modules/…) are left out.
  */
-export function listWorkFiles(dir: string, sub = "", anyType = false): string[] {
+export function listWorkFiles(dir: string, sub = ""): string[] {
   return fs.readdirSync(path.join(/*turbopackIgnore: true*/ dir, sub), { withFileTypes: true }).flatMap((entry) => {
     if (entry.name.startsWith(".")) return [];
     const rel = sub ? `${sub}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      if (SKIPPED_DIRS.has(entry.name)) return [];
-      return listWorkFiles(dir, rel, anyType || (!sub && isStatementDir(entry.name)));
-    }
-    return anyType || SERVED_EXTENSIONS.has(path.extname(entry.name).toLowerCase()) ? [rel] : [];
+    if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : listWorkFiles(dir, rel);
+    return [rel];
   });
 }
 
 function statementFiles(dir: string): string[] {
   const folder = listDirs(dir).find(isStatementDir);
-  const files = folder ? listWorkFiles(dir, folder, true) : [];
+  const files = folder ? listWorkFiles(dir, folder) : [];
   return files.sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
 }
 

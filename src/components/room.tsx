@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { buildDocHtml, markDiagrams, startEditing } from "@/lib/doc-editing";
@@ -7,6 +8,9 @@ import { CodeIcon, DocIcon, DownloadIcon, ExternalIcon, GithubIcon, PencilIcon, 
 import { PasswordDialog } from "./password-dialog";
 import { StatementMenu } from "./statement-menu";
 import { ThemeToggle } from "./theme-toggle";
+
+// The code view (with the Monaco editor) is only downloaded when it is opened.
+const CodeViewer = dynamic(() => import("./code-viewer"), { ssr: false });
 
 type View = "doc" | "code";
 type EditStatus = "clean" | "dirty" | "saving" | "saved" | "conflict" | "error";
@@ -28,7 +32,10 @@ type RoomProps = {
     folder: string;
     title?: string;
     docUrl: string | null;
-    codeUrl: string;
+    /** URL of the work's folder on the site, where its files are served. */
+    base: string;
+    /** The work's files, relative to its folder, for the code view. */
+    files: string[];
     githubUrl: string;
     /** Files of the work's "enonce" folder. */
     statement: { name: string; url: string }[];
@@ -38,16 +45,26 @@ type RoomProps = {
 };
 
 // The active view lives in the URL hash (#doc / #code) so it can be linked and survives a reload.
+// "#code/<path>" also opens a file or folder of the work in the code view.
 function subscribe(onChange: () => void) {
   window.addEventListener("hashchange", onChange);
   return () => window.removeEventListener("hashchange", onChange);
 }
 
+function codePath(hash: string): string | undefined {
+  if (!hash.startsWith("#code/")) return undefined;
+  try {
+    return decodeURIComponent(hash.slice("#code/".length));
+  } catch {
+    return undefined;
+  }
+}
+
 export function Room({ subject, work, edit }: RoomProps) {
   const hash = useSyncExternalStore(subscribe, () => window.location.hash, () => "");
-  const view: View = hash === "#code" ? "code" : hash === "#doc" ? "doc" : work.docUrl ? "doc" : "code";
+  const view: View = hash.startsWith("#code") ? "code" : hash === "#doc" ? "doc" : work.docUrl ? "doc" : "code";
 
-  // github1s is heavy: load it the first time the code view is opened, then keep it alive.
+  // Load the code view the first time it is opened, then keep it alive (open tabs, folders).
   const [codeLoaded, setCodeLoaded] = useState(false);
   if (view === "code" && !codeLoaded) setCodeLoaded(true);
 
@@ -165,7 +182,8 @@ export function Room({ subject, work, edit }: RoomProps) {
     else page?.print();
   }
 
-  const openUrl = view === "doc" ? work.docUrl : work.codeUrl;
+  // The doc can be opened on its own in a new tab; the code view already fills this page.
+  const openUrl = view === "doc" ? work.docUrl : null;
 
   return (
     <div className="flex h-dvh flex-col">
@@ -292,12 +310,9 @@ export function Room({ subject, work, edit }: RoomProps) {
           )
         )}
         {codeLoaded && (
-          <iframe
-            src={work.codeUrl}
-            title={`Code ${work.folder} dans VS Code`}
-            allow="clipboard-read; clipboard-write"
-            className={`absolute inset-0 size-full ${view === "code" ? "" : "invisible"}`}
-          />
+          <div className={`absolute inset-0 ${view === "code" ? "" : "invisible"}`}>
+            <CodeViewer files={work.files} base={work.base} rootName={work.folder} reveal={codePath(hash)} />
+          </div>
         )}
       </main>
     </div>
