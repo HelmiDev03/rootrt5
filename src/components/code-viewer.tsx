@@ -2,6 +2,8 @@
 
 import Editor from "@monaco-editor/react";
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { runLanguage, startRun } from "@/lib/runner";
+import { ExternalIcon, PlayIcon, StopIcon, TrashIcon } from "./icons";
 
 // A read-only, VS Code-like view of one work's folder: explorer, tabs and the Monaco editor
 // (the editor of VS Code). Files come from the site itself, so only this work is shown.
@@ -21,6 +23,30 @@ type CodeViewerProps = {
 };
 
 type Loaded = { text: string } | "binary" | "error";
+
+type OutputPart = { kind: "info" | "out" | "err" | "ok" | "fail"; text: string };
+
+const PART_CLASS: Record<OutputPart["kind"], string> = {
+  info: "block text-[#8a8a8a]",
+  out: "",
+  err: "text-[#e51400] dark:text-[#f14c4c]",
+  ok: "block text-[#388a34] dark:text-[#89d185]",
+  fail: "block text-[#e51400] dark:text-[#f14c4c]",
+};
+
+// Keeps the panel responsive when a program prints without end.
+const MAX_OUTPUT = 200_000;
+
+function trimOutput(parts: OutputPart[]): OutputPart[] {
+  let size = 0;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    size += parts[i].text.length;
+    if (size > MAX_OUTPUT) return [{ kind: "info", text: "… (début de la sortie coupé)" }, ...parts.slice(i + 1)];
+  }
+  return parts;
+}
+
+const ACTION_CLASS = "flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10";
 
 const IMAGES = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"]);
 const BINARIES = new Set([
@@ -207,6 +233,72 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
     if (selected) treeRef.current?.querySelector(`[data-path="${CSS.escape(selected)}"]`)?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
+  // ▶ Exécuter: the program runs in the browser (see lib/runner.ts), its output goes to the panel.
+  const [panel, setPanel] = useState(false);
+  const [output, setOutput] = useState<OutputPart[]>([]);
+  const [running, setRunning] = useState(false);
+  const [stdin, setStdin] = useState("");
+  const [stdinOpen, setStdinOpen] = useState(false);
+  const stopRun = useRef<(() => void) | null>(null);
+  const runId = useRef(0);
+  const pending = useRef<OutputPart[]>([]);
+  const outputRef = useRef<HTMLPreElement>(null);
+
+  // Output comes in many small pieces: add them to the panel once per frame.
+  function append(part: OutputPart) {
+    if (pending.current.push(part) > 1) return;
+    requestAnimationFrame(() => {
+      const parts = pending.current;
+      pending.current = [];
+      setOutput((all) => trimOutput([...all, ...parts]));
+    });
+  }
+
+  function run(entry: string, entryText: string, language: NonNullable<ReturnType<typeof runLanguage>>) {
+    const id = ++runId.current;
+    const started = performance.now();
+    pending.current = [];
+    setOutput([{ kind: "info", text: `▶ ${entry}` }]);
+    setPanel(true);
+    setRunning(true);
+    stopRun.current = startRun({
+      language,
+      base,
+      files,
+      entry,
+      entryText,
+      stdin,
+      onEvent: (event) => {
+        if (runId.current !== id) return;
+        if (event.type === "status") append({ kind: "info", text: event.text });
+        else if (event.type === "output") append({ kind: event.stream === "stderr" ? "err" : "out", text: event.text });
+        else {
+          setRunning(false);
+          const seconds = ((performance.now() - started) / 1000).toFixed(1).replace(".", ",");
+          if (event.code === 0) append({ kind: "ok", text: `✔ Terminé en ${seconds} s` });
+          else if (event.failure === "compile") append({ kind: "fail", text: "✘ Erreur de compilation" });
+          else append({ kind: "fail", text: `✘ Terminé avec le code ${event.code} (${seconds} s)` });
+        }
+      },
+    });
+  }
+
+  function stop() {
+    runId.current++;
+    stopRun.current?.();
+    stopRun.current = null;
+    setRunning(false);
+    append({ kind: "fail", text: "■ Programme arrêté" });
+  }
+
+  // Leaving the page stops a program that is still running.
+  useEffect(() => () => stopRun.current?.(), []);
+
+  useEffect(() => {
+    const element = outputRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [output]);
+
   function renderNodes(nodes: TreeNode[], depth: number): ReactNode {
     return nodes.map((node) => {
       if (node.children === null) {
@@ -261,6 +353,8 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
   const content = active ? loaded[active] : undefined;
   const kind = active ? kindOf(active) : null;
   const ext = active ? extension(active) : "";
+  const text = typeof content === "object" ? content.text : undefined;
+  const language = active ? runLanguage(active, text) : null;
 
   return (
     <div className="flex h-full flex-col bg-white text-[#3b3b3b] dark:bg-[#1e1e1e] dark:text-[#cccccc]">
@@ -302,7 +396,8 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
         {/* Editor area */}
         <section className="flex min-w-0 flex-1 flex-col">
           {tabs.length > 0 && (
-            <div className="flex h-9 shrink-0 overflow-x-auto bg-[#f8f8f8] dark:bg-[#181818]" role="tablist">
+            <div className="flex h-9 shrink-0 bg-[#f8f8f8] dark:bg-[#181818]">
+            <div className="flex min-w-0 flex-1 overflow-x-auto" role="tablist">
               {tabs.map((path) => {
                 const isActive = path === active;
                 return (
@@ -327,6 +422,10 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
                     >
                       <FileGlyph path={path} />
                       {fileName(path)}
+                      {/* Two open files with the same name: show their folder, like VS Code. */}
+                      {tabs.some((tab) => tab !== path && fileName(tab) === fileName(path)) && (
+                        <span className="text-[11px] opacity-60">{path.split("/").slice(-2, -1)[0] ?? rootName}</span>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -341,6 +440,33 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
                   </div>
                 );
               })}
+            </div>
+            {/* Editor actions, on the right like in VS Code */}
+            <div className="flex shrink-0 items-center gap-1 px-2">
+              {running ? (
+                <button type="button" onClick={stop} className={ACTION_CLASS} title="Arrêter le programme">
+                  <StopIcon className="size-3.5 text-[#e51400] dark:text-[#f14c4c]" /> Arrêter
+                </button>
+              ) : (
+                active &&
+                language &&
+                text !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => run(active, text, language)}
+                    className={ACTION_CLASS}
+                    title={`Exécuter ${fileName(active)} dans le navigateur`}
+                  >
+                    <PlayIcon className="size-3.5 text-[#388a34] dark:text-[#89d185]" /> Exécuter
+                  </button>
+                )
+              )}
+              {active && (ext === "html" || ext === "htm") && (
+                <a href={fileUrl(base, active)} target="_blank" rel="noopener" className={ACTION_CLASS} title="Ouvrir la page dans un nouvel onglet">
+                  <ExternalIcon className="size-3.5" /> Aperçu
+                </a>
+              )}
+            </div>
             </div>
           )}
 
@@ -406,12 +532,63 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
               />
             )}
           </div>
+
+          {/* Output panel, like VS Code's terminal */}
+          {panel && (
+            <div className="flex h-2/5 min-h-36 shrink-0 flex-col border-t border-[#e5e5e5] dark:border-[#2b2b2b]">
+              <div className="flex h-8 shrink-0 items-center gap-4 px-4 text-[11px] uppercase tracking-wide">
+                <span className="border-b border-[#005fb8] py-1.5 text-[#333333] dark:border-[#0078d4] dark:text-white">Sortie</span>
+                {language === "python" && (
+                  <button
+                    type="button"
+                    onClick={() => setStdinOpen(!stdinOpen)}
+                    aria-pressed={stdinOpen}
+                    title="Lignes lues par input()"
+                    className={`py-1.5 uppercase ${stdinOpen ? "text-[#333333] dark:text-white" : "text-[#8a8a8a] hover:text-[#333333] dark:hover:text-white"}`}
+                  >
+                    Entrée
+                  </button>
+                )}
+                <div className="ml-auto flex items-center gap-1">
+                  <button type="button" onClick={() => setOutput([])} title="Effacer la sortie" className={ACTION_CLASS}>
+                    <TrashIcon className="size-3.5" />
+                  </button>
+                  <button type="button" onClick={() => setPanel(false)} title="Fermer le panneau" className={`${ACTION_CLASS} text-sm leading-none`}>
+                    ×
+                  </button>
+                </div>
+              </div>
+              {stdinOpen && language === "python" && (
+                <textarea
+                  value={stdin}
+                  onChange={(event) => setStdin(event.target.value)}
+                  rows={3}
+                  spellCheck={false}
+                  aria-label="Entrée du programme"
+                  placeholder="Lignes lues par input(), une par ligne (utilisées à la prochaine exécution)"
+                  className="mx-4 mb-2 shrink-0 resize-y rounded border border-[#cecece] bg-white px-2 py-1 font-mono text-xs outline-none focus:border-[#005fb8] dark:border-[#3c3c3c] dark:bg-[#1e1e1e] dark:focus:border-[#0078d4]"
+                />
+              )}
+              <pre
+                ref={outputRef}
+                className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-4 pb-3 font-mono text-[12.5px] leading-normal"
+              >
+                {output.map((part, i) => (
+                  <span key={i} className={PART_CLASS[part.kind]}>
+                    {part.text}
+                  </span>
+                ))}
+              </pre>
+            </div>
+          )}
         </section>
       </div>
 
       {/* Status bar */}
       <footer className="flex h-6 shrink-0 items-center justify-between bg-[#007acc] px-3 text-xs text-white">
-        <span>{rootName} · Lecture seule</span>
+        <span>
+          {rootName} · Lecture seule{running ? " · ▶ Exécution…" : ""}
+        </span>
         <span>{active && kind === "text" ? (LANGUAGES[ext] ?? (ext ? ext.toUpperCase() : "Texte")) : ""}</span>
       </footer>
     </div>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Java runner</title>
+<script src="https://cjrtnc.leaningtech.com/4.3/loader.js"></script>
+</head>
+<body>
+<pre id="console"></pre>
+<script>
+  // Runs Java inside the browser for the code view of the RT5 site (loaded in a hidden iframe):
+  // CheerpJ is a Java 17 virtual machine in WebAssembly, and ECJ (the Eclipse Java compiler,
+  // patched to find CheerpJ's system library, see ecj/README.txt) compiles the sources.
+  // The page sends the sources as a zip; tools/Rt5Unzip.java unpacks it in CheerpJ's own files
+  // ("/files/", "/app/" being the site's root) so the compiler sees the real folders.
+  const COMPILER = "/app/runners/ecj-rt5.jar";
+  const UNZIP = "/app/runners/rt5-unzip.jar";
+  const output = document.getElementById("console");
+  let runtime = null;
+  let job = null; // { id, sent }
+
+  // CheerpJ writes System.out and System.err into #console: forward what is new.
+  function flush() {
+    if (!job) return;
+    const text = output.textContent;
+    if (text.length > job.sent) {
+      parent.postMessage({ id: job.id, type: "output", text: text.slice(job.sent) }, location.origin);
+      job.sent = text.length;
+    }
+  }
+  new MutationObserver(flush).observe(output, { childList: true, characterData: true, subtree: true });
+
+  addEventListener("message", async (event) => {
+    if (event.source !== parent || event.origin !== location.origin || event.data?.type !== "run") return;
+    const { id, zip, sources, mainClass } = event.data;
+    const post = (message) => parent.postMessage({ id, ...message }, location.origin);
+    job = { id, sent: output.textContent.length };
+    try {
+      if (!runtime) {
+        post({ type: "status", text: "Chargement de Java dans le navigateur (la première fois : 10 à 20 s)…" });
+        runtime = cheerpjInit({ version: 17, status: "none" });
+      }
+      await runtime;
+
+      const folder = `/files/rt5/${id}`;
+      cheerpjAddStringFile(`/str/rt5-${id}.zip`, zip);
+      if ((await cheerpjRunMain("Rt5Unzip", UNZIP, `/str/rt5-${id}.zip`, `${folder}/src`)) !== 0) {
+        flush();
+        return post({ type: "exit", code: 1, failure: "Impossible de préparer les fichiers Java" });
+      }
+
+      const classes = `${folder}/classes/`;
+      post({ type: "status", text: `Compilation de ${sources.length} fichier${sources.length > 1 ? "s" : ""} Java…` });
+      const compiled = await cheerpjRunMain(
+        "org.eclipse.jdt.internal.compiler.batch.Main", COMPILER,
+        "-17", "-encoding", "UTF-8", "-nowarn", "-d", classes, ...sources.map((source) => `${folder}/src/${source}`),
+      );
+      flush();
+      if (compiled !== 0) return post({ type: "exit", code: compiled, failure: "compile" });
+
+      post({ type: "status", text: `Exécution de ${mainClass}` });
+      const code = await cheerpjRunMain(mainClass, classes);
+      flush();
+      post({ type: "exit", code });
+    } catch (error) {
+      flush();
+      post({ type: "exit", code: 1, failure: String(error) });
+    }
+  });
+</script>
+</body>
+</html>

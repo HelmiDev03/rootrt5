@@ -221,6 +221,11 @@ export function Room({ subject, work, edit }: RoomProps) {
               <DownloadIcon /> PDF
             </button>
           )}
+          {view === "code" && (
+            <a href={`${work.base}/zip`} download className="btn" title={`Télécharger le projet ${work.folder} (.zip)`}>
+              <DownloadIcon /> ZIP
+            </a>
+          )}
           <StatementMenu files={work.statement} />
           <a href={work.githubUrl} target="_blank" rel="noopener" title="Voir sur GitHub" className="btn px-2">
             <GithubIcon />
