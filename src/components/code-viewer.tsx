@@ -454,10 +454,10 @@ export default function CodeViewer({ files, base, rootName, reveal }: CodeViewer
                   <button
                     type="button"
                     onClick={() => run(active, text, language)}
-                    className={ACTION_CLASS}
+                    className="flex items-center gap-1.5 rounded bg-[#2ea043] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#3fb950]"
                     title={`Exécuter ${fileName(active)} dans le navigateur`}
                   >
-                    <PlayIcon className="size-3.5 text-[#388a34] dark:text-[#89d185]" /> Exécuter
+                    <PlayIcon className="size-3.5" /> Exécuter
                   </button>
                 )
               )}

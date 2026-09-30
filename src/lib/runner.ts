@@ -31,8 +31,19 @@ export function runLanguage(path: string, text: string | undefined): RunLanguage
   if (ext === "py") return "python";
   if (ext === "js" || ext === "mjs" || ext === "cjs") return "javascript";
   if (ext === "ts" || ext === "mts" || ext === "cts") return "typescript";
-  if (ext === "java" && text && /\bvoid\s+main\s*\(/.test(text)) return "java";
+  if (ext === "java" && text !== undefined) return "java";
   return null;
+}
+
+const MAIN_METHOD = /\bvoid\s+main\s*\(/;
+
+function fileName(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+// Main.java first, then by path.
+function byPreference(a: string, b: string): number {
+  return Number(fileName(b) === "Main.java") - Number(fileName(a) === "Main.java") || a.localeCompare(b);
 }
 
 function fileUrl(base: string, path: string): string {
@@ -69,7 +80,6 @@ function runJava({ base, files, entry, entryText, onEvent }: RunOptions): () => 
   // The source root (e.g. src/main/java/): every Java file under it is compiled, like Maven does.
   const root = pkgPath && folder.endsWith(pkgPath) ? folder.slice(0, -pkgPath.length) : folder;
   const sources = files.filter((file) => file.endsWith(".java") && file.startsWith(root));
-  const className = entry.slice(entry.lastIndexOf("/") + 1, -".java".length);
   const id = `${Date.now()}${Math.floor(Math.random() * 1e6)}`;
   let stopped = false;
 
@@ -84,17 +94,36 @@ function runJava({ base, files, entry, entryText, onEvent }: RunOptions): () => 
   (async () => {
     // The sources, in their package folders (tn/insat/…), zipped for java.html.
     const entries: Record<string, Uint8Array> = {};
+    const texts: Record<string, string> = {};
     await Promise.all(
       sources.map(async (file) => {
         const res = await fetch(fileUrl(base, file));
         if (!res.ok) throw new Error(`Impossible de charger ${file}`);
-        entries[file.slice(root.length)] = new Uint8Array(await res.arrayBuffer());
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        entries[file.slice(root.length)] = bytes;
+        texts[file] = new TextDecoder().decode(bytes);
       }),
     );
+
+    // The class to run: this file if it has a main method, otherwise one of its package (Main first),
+    // otherwise one of the project.
+    const withMain = sources.filter((file) => MAIN_METHOD.test(texts[file])).sort(byPreference);
+    const inFolder = (file: string) => file.slice(0, file.lastIndexOf("/") + 1) === folder;
+    const target = withMain.includes(entry) ? entry : (withMain.find(inFolder) ?? withMain[0]);
+    if (!target) {
+      onEvent({ type: "output", stream: "stderr", text: "Aucune classe de ce projet n’a de méthode main.\n" });
+      return onEvent({ type: "exit", code: 1 });
+    }
+    if (target !== entry) {
+      onEvent({ type: "status", text: `${fileName(entry)} n’a pas de méthode main : exécution de ${target.slice(root.length)}` });
+    }
+    const targetPackage = /^\s*package\s+([\w.]+)\s*;/m.exec(texts[target])?.[1];
+    const className = fileName(target).slice(0, -".java".length);
+
     const frame = await javaRuntime();
     if (stopped) return;
     frame.contentWindow?.postMessage(
-      { type: "run", id, zip: zipSync(entries), sources: Object.keys(entries), mainClass: pkg ? `${pkg}.${className}` : className },
+      { type: "run", id, zip: zipSync(entries), sources: Object.keys(entries), mainClass: targetPackage ? `${targetPackage}.${className}` : className },
       location.origin,
     );
   })().catch((error: Error) => {
