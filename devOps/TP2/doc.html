@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compte rendu TP2 Kubernetes</title>
 <meta name="description" content="Compte rendu du TP2 DevOps (INSAT RT5) : cours Kubernetes for Beginners avec minikube, puis TP Kubernetes avec kind.">
+<script>
+// Thème : le choix enregistré par le site RT5 (clé "theme"), sinon le réglage du système.
+function applyTheme(){
+  var saved=null;
+  try{saved=localStorage.getItem("theme");}catch(e){}
+  var dark=saved?saved==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.classList.toggle("dark",dark);
+}
+applyTheme();
+</script>
 <style>
 *{box-sizing:border-box}
 :root{
@@ -178,6 +188,57 @@ details.data summary{cursor:pointer;color:var(--accent-ink)}
   .term,figure,.chart-card,.callout,.kpi,.diagram,.code{break-inside:avoid}
   h2,h3{break-after:avoid}
   .cover,.term,.term-head,.chip,.callout,.badge,.browser .bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+/* mode sombre (écran seulement : le PDF reste clair) */
+@media screen{
+:root.dark{
+  color-scheme:dark;
+  --page:#0d1117; --surface:#161b22; --surface-2:#21262d; --ink:#e6edf3; --ink-2:#b1bac4; --muted:#8b949e;
+  --line:#30363d; --accent:#5b8ef0; --accent-ink:#8cb2ff; --accent-wash:#172540;
+  --term-bg:#010409; --term-head:#161b22;
+  --chart-surface:#161b22;
+}
+.dark .cover{background:linear-gradient(135deg,#112c66 0%,#1d4bb0 58%,#2b5fcb 100%)}
+.dark .badge.ok{background:#12301b;color:#6fdc8c}
+.dark .badge.warn{background:#352509;color:#f0b85a}
+.dark .term{box-shadow:0 0 0 1px var(--line)}
+.dark .code{background:#0d1117}
+.dark .code pre{color:var(--ink)}
+.dark .code .hl{background:#4a3a06}
+.dark .callout.info{background:#122139;border-color:#1f3a66}
+.dark .callout.ok{background:#11271a;border-color:#1f4d2c}
+.dark .callout.warn{background:#2b200c;border-color:#5a4212}
+.dark .callout.answer{background:#1d1934;border-color:#3a3170}
+.dark .callout.note{background:#1a1f27;border-color:var(--line)}
+.dark .browser{background:var(--surface);box-shadow:none}
+.dark .browser .bar{background:var(--surface-2)}
+.dark .browser .url{background:var(--page)}
+.dark table.tbl{background:var(--surface)}
+.dark .tbl tr:nth-child(even) td{background:#1b2028}
+.dark svg .tick{fill:var(--muted)}
+.dark svg .lab{fill:var(--ink)}
+.dark svg .val,.dark svg .ref{fill:var(--ink-2)}
+.dark svg .halo{stroke:var(--chart-surface)}
+.dark svg .mark:focus,.dark svg [stroke="#0b0b0b"]{stroke:var(--ink)}
+.dark svg [stroke="#52514e"]{stroke:var(--ink-2)}
+.dark svg [stroke="#c3c2b7"]{stroke:#57606a}
+.dark svg [stroke="#e1e0d9"]{stroke:var(--line)}
+.dark .strips .row{border-top-color:var(--line)}
+.dark .strip-axis{color:var(--muted)}
+.dark .row-title .bad{color:#ff7b72}
+.dark .row-title .good,.dark .check{color:#56d364}
+.dark .tip{background:var(--surface-2);border-color:var(--line);color:var(--ink-2);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.dark .tip .tip-v{color:var(--ink)}
+.dark .diagram{background:#11161d}
+.dark .d-box:not(.accent){background:var(--surface);border-color:#2f5196}
+.dark .d-cluster{background:#101a2a;border-color:#2f5196}
+.dark .d-grp{background:var(--surface);border-color:#2a3d5e}
+.dark .route{background:var(--surface)}
+.dark .chip.pod{background:#11271a;border-color:#1f4d2c}
+.dark .chip.init{background:#1d1934;border-color:#3a3170}
+.dark .chip.side{background:#2b200c;border-color:#5a4212}
+.dark .chip.vol{background:var(--surface-2)}
+.dark .podbox{background:#0f2218;border-color:#1f4d2c}
 }
 </style>
 </head>
@@ -2689,6 +2750,9 @@ kind delete cluster --name devops-tp             # nettoyage</pre></div>
     });
     svg.addEventListener('pointerleave',hide);
   });
+  // Suit le bouton clair/sombre du site RT5 (événement storage) et le réglage du système.
+  addEventListener('storage',function(e){if(e.key==='theme')applyTheme();});
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
   window.addEventListener('beforeprint',function(){document.querySelectorAll('details').forEach(function(d){d.setAttribute('data-was',d.open?'1':'0');d.open=true;});});
   window.addEventListener('afterprint',function(){document.querySelectorAll('details').forEach(function(d){d.open=d.getAttribute('data-was')==='1';});});
 })();
