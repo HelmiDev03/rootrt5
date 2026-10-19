@@ -1,0 +1,276 @@
+Partie A. Réaliser et Comprendre toutes les vidéos
+C:\Users\helmi\OneDrive\Desktop\RT5\devOps\TP2\tp_support
+
+Partie B. Ce TP est conçu pour se familiariser avec Kubernetes
+
+Pour ce TP, nous utiliserons kind (Kubernetes in Docker), car il est extrêmement léger et parfait pour simuler des clusters multi-nœuds sur une
+machine locale.
+
+
+
+🛠️ Partie 1 : Mise en place de
+l'environnement (Le Bac à Sable)
+
+L'objectif est d'installer les outils de base et de créer un cluster
+fonctionnel.
+
+
+
+Installation de Kind & Kubectl :
+
+
+
+Installez Docker, puis Kind.
+
+
+
+Installez kubectl pour piloter le cluster.
+
+
+
+Création du Cluster :
+
+
+
+Bash
+
+kind create cluster --name devops-tp --config
+
+
+•
+
+• <<EOF
+
+kind: Cluster
+
+apiVersion: kind.x-k8s.io/v1alpha4
+
+nodes:
+
+
+• role:
+control-plane
+
+• role:
+worker
+
+• role:
+worker
+
+EOF
+
+Vérification : Assurez-vous que vos 3 nœuds sont Ready.
+
+
+
+
+
+
+🏗️ Partie 2 : Déploiement
+Progressif (Niveau Débutant)
+
+Ici, on manipule les objets de base.
+
+
+
+1. Le Pod (L'unité atomique)
+
+Créez un pod nommé nginx-pod utilisant l'image nginx:alpine.
+
+
+
+Challenge : Entrez dans le pod (exec) et modifiez le fichier index.html pour
+qu'il affiche "Hello DevOps".
+
+
+
+2. Le Deployment (L'autoscaling et la résilience)
+
+Créez un fichier deployment.yaml avec :
+
+
+
+Répliques : 3
+
+
+
+Sélecteur : app: web-app
+
+
+
+Image : httpd:2.4
+
+
+
+Navigation : Utilisez kubectl get pods -o wide pour voir sur quels nœuds les
+pods sont répartis. Supprimez un pod manuellement et observez comment
+Kubernetes le recrée instantanément.
+
+
+
+
+
+
+🌐 Partie 3 : Le
+Networking avec les Services (L'aiguillage)
+
+Les Pods meurent et renaissent avec de nouvelles adresses IP. Le Service offre
+une IP fixe et un nom DNS stable pour atteindre vos Pods.
+
+
+
+1. Le ClusterIP (Communication Interne)
+
+C'est le type par défaut. Il permet aux composants du cluster de se parler
+entre eux (ex: un Backend qui parle à une BDD).
+
+
+
+Action : Créez un service pour votre application web-app :
+
+
+
+Bash
+
+kubectl expose deployment web-app --type=ClusterIP --port=80 --target-port=80
+
+Test : Lancez un pod temporaire "test" et essayez de contacter le
+service par son nom :
+
+
+
+Bash
+
+kubectl run test-pod --image=curlimages/curl -i --tty --rm
+
+
+
+
+•
+
+• -curl http://web-app
+
+2. Le NodePort (Accès Extérieur basique)
+
+Il ouvre un port spécifique (entre 30000 et 32767) sur chaque nœud du
+cluster.
+
+
+
+
+
+
+Action : Modifiez le type du service en NodePort.
+
+
+
+Challenge : Trouvez quel port a été assigné dynamiquement par Kubernetes :
+
+
+
+Bash
+
+kubectl get svc web-app
+
+3. Le LoadBalancer (Le standard Cloud)
+
+Dans un environnement Cloud (AWS, GCP, Azure), ce type commande un vrai
+répartiteur de charge externe. Avec Kind, il restera souvent en <pending>
+sauf si vous installez un outil comme MetalLB.
+
+
+
+🛠️
+Exercice Pratique : L'équilibrage de charge (Load Balancing)
+
+Observation : Lancez la commande suivante pour surveiller les logs de vos pods
+en temps réel :
+
+kubectl logs -l app=web-app -f --max-log-requests=10
+
+
+
+Simulation de trafic : Dans un autre terminal, envoyez plusieurs requêtes vers
+l'IP du service.
+
+
+
+Analyse : Regardez comment Kubernetes distribue les requêtes entre les
+différents Pods de votre déploiement. C'est le kube-proxy qui gère cette magie.
+
+
+
+
+
+
+
+
+🚀 Partie 4 : Stratégies
+de Déploiement (Niveau Intermédiaire)
+
+C'est ici que l'on différencie l'administrateur de l'ingénieur DevOps.
+
+
+
+1. Rolling Update (Par défaut)
+
+Mettez à jour l'image de votre déploiement vers httpd:latest.
+
+
+
+Observez la transition : kubectl rollout status deployment/web-app.
+
+
+
+2. Stratégie Recreate
+
+Modifiez votre YAML pour utiliser la stratégie type: Recreate.
+
+
+
+Question : Quel est l'impact sur la disponibilité de l'application pendant la
+mise à jour ?
+
+
+
+3. Simulation de Canary Release
+
+Gardez votre v1 (3 répliques).
+
+
+
+Lancez un deuxième déploiement v2 (1 seule réplique) avec le même label de
+Service.
+
+
+
+Observez le trafic se répartir (environ 25% sur la v2).
+
+
+
+
+
+
+PARTiE 5 : Déployer une Application MultiContainer en
+utilisant le service CLUSTER IP et INGRESS
+
+
+
+
+
+
+📝
+Questions de validation (L'examen final)
+
+Troubleshooting : Si un pod est en ImagePullBackOff, quelles sont les 3 causes
+possibles ?
+
+
+
+Réseau : Comment exposer votre application pour qu'elle soit accessible depuis
+votre navigateur via localhost avec Kind ? (Indice : port-forward ou Ingress).
+
+
+
+Clean-up : Comment supprimer l'intégralité de l'infrastructure en une seule
+command

@@ -1,0 +1,11 @@
+# Section 8.1 - Suppression du Deployment et du Service
+$ kubectl delete deployment nginx-deployment
+deployment.apps "nginx-deployment" deleted from default namespace
+
+$ kubectl delete service nginx-deployment
+service "nginx-deployment" deleted from default namespace
+
+$ kubectl get all
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   2m4s
+

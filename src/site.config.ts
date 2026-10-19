@@ -5,5 +5,6 @@ export const site = {
   // Display names for subject folders. Folders not listed get a name derived from the folder name.
   subjectTitles: {
     "ArchitecturesRéactivesetMicroservices": "Architectures Réactives et Microservices",
+    devOps: "DevOps",
   } as Record<string, string>,
 };

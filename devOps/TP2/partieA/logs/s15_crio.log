@@ -1,0 +1,174 @@
+# Section 15.1 - Changement du runtime de conteneurs : Docker -> CRI-O
+$ kubectl get nodes -o wide
+NAME       STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                              CONTAINER-RUNTIME
+minikube   Ready    control-plane   10m   v1.37.0   192.168.49.2   <none>        Debian GNU/Linux 12 (bookworm)   6.18.54.1-microsoft-standard-WSL2 (amd64)   docker://29.7.2
+
+$ minikube stop
+* Stopping node "minikube"  ...
+* Powering off "minikube" via SSH ...
+* 1 node stopped.
+
+$ minikube delete
+* Deleting "minikube" in docker ...
+* Deleting container "minikube" ...
+* Removing C:\Users\helmi\.minikube\machines\minikube ...
+* Removed all traces of the "minikube" cluster.
+
+$ minikube start --driver=docker --container-runtime=cri-o --cpus=4 --memory=6g --insecure-registry=host.minikube.internal:5000
+* minikube v1.39.0 on Microsoft Windows 11 Home Single Language 25H2
+  - MINIKUBE_IN_STYLE=false
+* Using the docker driver based on user configuration
+* Using Docker Desktop driver with root privileges
+* Starting "minikube" primary control-plane node in "minikube" cluster
+* Pulling base image v0.0.51 ...
+* Downloading Kubernetes v1.37.0 preload ...
+* Preparing Kubernetes v1.37.0 on CRI-O 1.35.7 ...
+* Configuring CNI (Container Networking Interface) ...
+* Verifying Kubernetes components...
+  - Using image gcr.io/k8s-minikube/storage-provisioner:v5
+* Enabled addons: storage-provisioner, default-storageclass
+* Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
+
+$ kubectl get nodes -o wide
+NAME       STATUS     ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                              CONTAINER-RUNTIME
+minikube   NotReady   control-plane   6s    v1.37.0   192.168.49.2   <none>        Debian GNU/Linux 12 (bookworm)   6.18.54.1-microsoft-standard-WSL2 (amd64)   cri-o://1.35.7
+
+$ kubectl get nodes
+NAME       STATUS   ROLES           AGE   VERSION
+minikube   Ready    control-plane   28s   v1.37.0
+
+$ minikube ssh -- "sudo crictl version"
+Version:  0.1.0
+RuntimeName:  cri-o
+RuntimeVersion:  1.35.7
+RuntimeApiVersion:  v1
+
+$ minikube ssh -- "docker ps 2>&1 | head -2"
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+
+$ minikube ssh -- "sudo crictl ps -o table | cut -c1-140"
+CONTAINER           IMAGE                                                              CREATED             STATE               NAME         
+4d9142b4102a7       520212b8b0fcd9309d7362d592f513b72880fa5a4e9e8b91442e7ee3b622c6a9   1 second ago        Running             coredns      
+8e687c2d40bdc       6e38f40d628db3002f5617342c8872c935de530d867d0f709a2fbda1a302a562   1 second ago        Running             storage-provi
+c8b30d7cf825a       4626fe10df5b930638e6e1662143ee1c7a698de6174fdb61a8ce658e688be2cd   12 seconds ago      Running             kindnet-cni  
+8094a855b7bc9       d6a28daf3e6b0ac88d2c74d715a4a156a33c1acef57fe89bcd334c47532949e7   19 seconds ago      Running             kube-proxy   
+70aeb34cf7440       bec5f0e1e2eeb613b139d1f11f4d3d651ace46da25fd6c578e415fb9e911b9cf   30 seconds ago      Running             kube-apiserve
+4c04cb15370c7       364b3c3d9ec198179631af61ca9ff18efa5316ba19ce79f301fbeaee7b060989   30 seconds ago      Running             kube-controll
+388511aa58f0c       1fabf80a1273af13d05ef7528d2e48302da8b2c82c6e40eee9133debd484c428   30 seconds ago      Running             kube-schedule
+19d47e5b2eb08       270fbeb69717150d82de2f31e6d6a93a6a60f8843d63df68cebe33c4b59c5f78   30 seconds ago      Running             etcd         
+
+# Section 15.2 - Deploiement des deux applications avec le runtime CRI-O
+$ kubectl apply -f k8s-web-to-nginx.yaml -f nginx.yaml
+service/k8s-web-to-nginx created
+deployment.apps/k8s-web-to-nginx created
+service/nginx created
+deployment.apps/nginx created
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS             RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+k8s-web-to-nginx-66d6567d4b-7pbjs   0/1     ImagePullBackOff   0          4m    10.244.0.4   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-g52b7   0/1     ImagePullBackOff   0          4m    10.244.0.5   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-lnqgd   0/1     ImagePullBackOff   0          4m    10.244.0.3   minikube   <none>           <none>
+nginx-8d87469cc-2tzp4               1/1     Running            0          4m    10.244.0.6   minikube   <none>           <none>
+
+$ kubectl get svc
+NAME               TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+k8s-web-to-nginx   LoadBalancer   10.109.67.144   <pending>     3333:32564/TCP   4m
+kubernetes         ClusterIP      10.96.0.1       <none>        443/TCP          4m27s
+nginx              ClusterIP      10.109.182.64   <none>        80/TCP           4m
+
+$ kubectl get pod k8s-web-to-nginx-66d6567d4b-7pbjs -o jsonpath='{.status.containerStatuses[0].containerID}'; echo
+
+
+$ minikube ssh -- "sudo crictl ps | grep -E \"k8s-web|nginx|CONTAINER\" | cut -c1-140"
+CONTAINER           IMAGE                                                              CREATED             STATE               NAME         
+326b28abab8c3       ca5e66f340c769281edb187cf330c9246ab0cab9291bd1d6750dd356db26ab45   3 minutes ago       Running             nginx        
+
+$ minikube ssh -- "sudo crictl images | grep -E \"k8s-web|nginx|IMAGE\""
+IMAGE                                     TAG                  IMAGE ID            SIZE
+docker.io/library/nginx                   latest               ca5e66f340c76       167MB
+
+# Depannage : les pods k8s-web-to-nginx sont en ImagePullBackOff (l'image nginx publique, elle, a ete tiree)
+$ kubectl describe pod k8s-web-to-nginx-66d6567d4b-7pbjs | sed -n '/^Events:/,$p'
+Events:
+  Type     Reason     Age                   From               Message
+  ----     ------     ----                  ----               -------
+  Normal   Scheduled  4m28s                 default-scheduler  Successfully assigned default/k8s-web-to-nginx-66d6567d4b-7pbjs to minikube
+  Normal   Pulling    92s (x5 over 4m28s)   kubelet            spec.containers{k8s-web-to-nginx}: Pulling image "host.minikube.internal:5000/k8s-web-to-nginx:1.0.0"
+  Warning  Failed     92s (x5 over 4m28s)   kubelet            spec.containers{k8s-web-to-nginx}: Failed to pull image "host.minikube.internal:5000/k8s-web-to-nginx:1.0.0": unable to pull image: initializing source docker://host.minikube.internal:5000/k8s-web-to-nginx:1.0.0: pinging container registry host.minikube.internal:5000: Get "https://host.minikube.internal:5000/v2/": http: server gave HTTP response to HTTPS client
+  Warning  Failed     92s (x5 over 4m28s)   kubelet            spec.containers{k8s-web-to-nginx}: Error: ErrImagePull
+  Warning  Failed     24s (x15 over 4m27s)  kubelet            spec.containers{k8s-web-to-nginx}: Error: ImagePullBackOff
+  Normal   BackOff    1s (x17 over 4m27s)   kubelet            spec.containers{k8s-web-to-nginx}: Back-off pulling image "host.minikube.internal:5000/k8s-web-to-nginx:1.0.0"
+
+# Cause : CRI-O contacte le registre en HTTPS alors qu'il ecoute en HTTP. Le flag --insecure-registry ecrit par minikube
+# dans /etc/sysconfig/crio.minikube n'est pas transmis au service crio (lance sans argument) :
+$ minikube ssh -- "cat /etc/sysconfig/crio.minikube; ps -eo args | grep -E \"^/usr/bin/crio\"; systemctl cat crio | grep -E \"^(ExecStart|EnvironmentFile)\""
+
+CRIO_MINIKUBE_OPTIONS='--insecure-registry 10.96.0.0/12 --insecure-registry host.minikube.internal:5000 '
+/usr/bin/crio
+EnvironmentFile=-/etc/default/crio
+ExecStart=/usr/bin/crio \
+
+# Correctif : declarer le registre comme non-securise dans la configuration native de CRI-O, puis redemarrer CRI-O
+$ minikube ssh -- "printf '[[registry]]\nlocation = \"host.minikube.internal:5000\"\ninsecure = true\n' | sudo tee /etc/containers/registries.conf.d/50-local-registry.conf"
+[[registry]]
+location = "host.minikube.internal:5000"
+insecure = true
+
+$ minikube ssh -- "sudo systemctl restart crio && systemctl is-active crio"
+active
+
+$ kubectl delete pod -l app=k8s-web-to-nginx
+pod "k8s-web-to-nginx-66d6567d4b-7pbjs" deleted from default namespace
+pod "k8s-web-to-nginx-66d6567d4b-g52b7" deleted from default namespace
+pod "k8s-web-to-nginx-66d6567d4b-lnqgd" deleted from default namespace
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS      AGE     IP           NODE       NOMINATED NODE   READINESS GATES
+k8s-web-to-nginx-66d6567d4b-cv8sl   1/1     Running   0             7s      10.244.0.7   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-fgktc   1/1     Running   0             7s      10.244.0.9   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-h8kt6   1/1     Running   0             7s      10.244.0.8   minikube   <none>           <none>
+nginx-8d87469cc-2tzp4               1/1     Running   1 (20s ago)   4m49s   10.244.0.6   minikube   <none>           <none>
+
+# Section 15.3 - Verification de la connectivite entre les Deployments (runtime CRI-O)
+$ minikube ssh -- "sudo crictl ps | grep -E \"k8s-web|nginx|CONTAINER\" | cut -c1-150"
+CONTAINER           IMAGE                                                              CREATED             STATE               NAME                   
+25237c651012a       76709de7224b4b4e0182184c17f2720d0d65ea3436e1e51487f4cf32409f7424   26 seconds ago      Running             k8s-web-to-nginx       
+08cb99e9074a4       76709de7224b4b4e0182184c17f2720d0d65ea3436e1e51487f4cf32409f7424   27 seconds ago      Running             k8s-web-to-nginx       
+a05bd987d472f       76709de7224b4b4e0182184c17f2720d0d65ea3436e1e51487f4cf32409f7424   27 seconds ago      Running             k8s-web-to-nginx       
+7971202e42361       ca5e66f340c769281edb187cf330c9246ab0cab9291bd1d6750dd356db26ab45   38 seconds ago      Running             nginx                  
+
+$ minikube ssh -- "sudo crictl images | grep -E \"k8s-web|nginx|IMAGE\""
+IMAGE                                          TAG                  IMAGE ID            SIZE
+docker.io/library/nginx                        latest               ca5e66f340c76       167MB
+host.minikube.internal:5000/k8s-web-to-nginx   1.0.0                76709de7224b4       180MB
+
+$ kubectl get pod k8s-web-to-nginx-66d6567d4b-cv8sl -o jsonpath='{.status.containerStatuses[0].containerID}'; echo
+cri-o://a05bd987d472fef21abbdcfa96dbb422a2e5abeac2a014ba5d477b1e20050271
+
+$ minikube service k8s-web-to-nginx --url
+http://127.0.0.1:41560
+! Because you are using a Docker driver on windows, the terminal needs to be open to run it.
+
+$ for i in 1 2 3; do curl -s http://127.0.0.1:41560/; echo; done
+Hello from the k8s-web-to-nginx-66d6567d4b-cv8sl
+Hello from the k8s-web-to-nginx-66d6567d4b-cv8sl
+Hello from the k8s-web-to-nginx-66d6567d4b-cv8sl
+
+$ curl -s http://127.0.0.1:41560/nginx | grep -E '<title>|<h1>'
+<title>Welcome to nginx!</title>
+<h1>Welcome to nginx!</h1>
+
+$ kubectl exec k8s-web-to-nginx-66d6567d4b-cv8sl -- nslookup nginx.default.svc.cluster.local
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+Name:	nginx.default.svc.cluster.local
+Address: 10.109.182.64
+
+
+
+$ kubectl get svc nginx
+NAME    TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+nginx   ClusterIP   10.109.182.64   <none>        80/TCP    5m30s
+

@@ -1,0 +1,141 @@
+# Section 13.1 - Nettoyage declaratif de l'application precedente
+$ kubectl delete -f deployment.yaml -f service.yaml
+deployment.apps "k8s-web-hello" deleted from default namespace
+service "k8s-web-hello" deleted from default namespace
+
+# Section 13.2/13.3 - Deuxieme application web (endpoints / et /nginx) et son image Docker
+$ cat k8s-web-to-nginx/index.mjs
+import express from 'express'
+import os from 'os'
+
+const app = express()
+const PORT = 3000
+
+app.get('/', (req, res) => {
+  const helloMessage = `Hello from the ${os.hostname()}`
+  console.log(helloMessage)
+  res.send(helloMessage)
+})
+
+// Deuxieme endpoint : appel du Service "nginx" par son nom DNS interne au cluster
+app.get('/nginx', async (req, res) => {
+  const url = 'http://nginx'
+  const response = await fetch(url)
+  const body = await response.text()
+  res.send(body)
+})
+
+const server = app.listen(PORT, () => {
+  console.log(`Web server is listening at port ${PORT}`)
+})
+
+process.on('SIGTERM', () => server.close(() => process.exit(0)))
+
+$ docker build -q -t localhost:5000/k8s-web-to-nginx:1.0.0 .
+sha256:17e35c71545d8734ee7276cf0b2494d80548cfb8515bad7cecc15cae18be56a7
+
+$ docker push -q localhost:5000/k8s-web-to-nginx:1.0.0
+localhost:5000/k8s-web-to-nginx:1.0.0
+
+$ curl -s http://localhost:5000/v2/_catalog; echo
+{"repositories":["k8s-web-hello","k8s-web-to-nginx"]}
+
+
+# Section 13.4/13.5 - Specifications YAML (Service + Deployment dans un meme fichier, separes par ---)
+$ cat k8s-web-to-nginx.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-web-to-nginx
+spec:
+  type: LoadBalancer
+  selector:
+    app: k8s-web-to-nginx
+  ports:
+  - port: 3333
+    targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-web-to-nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k8s-web-to-nginx
+  template:
+    metadata:
+      labels:
+        app: k8s-web-to-nginx
+    spec:
+      containers:
+      - name: k8s-web-to-nginx
+        image: host.minikube.internal:5000/k8s-web-to-nginx:1.0.0
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+        ports:
+        - containerPort: 3000
+
+$ cat nginx.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+
+# Section 13.6 - Application des deux specifications en une seule commande
+$ kubectl apply -f k8s-web-to-nginx.yaml -f nginx.yaml
+service/k8s-web-to-nginx created
+deployment.apps/k8s-web-to-nginx created
+service/nginx created
+deployment.apps/nginx created
+
+$ kubectl get deployments
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+k8s-web-to-nginx   3/3     3            3           3s
+nginx              1/1     1            1           3s
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+k8s-web-to-nginx-66d6567d4b-2cmtp   1/1     Running   0          3s    10.244.0.28   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-7p9xr   1/1     Running   0          3s    10.244.0.26   minikube   <none>           <none>
+k8s-web-to-nginx-66d6567d4b-bsj6f   1/1     Running   0          3s    10.244.0.27   minikube   <none>           <none>
+nginx-8d87469cc-2t468               1/1     Running   0          3s    10.244.0.25   minikube   <none>           <none>
+
+$ kubectl get svc
+NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
+k8s-web-to-nginx   LoadBalancer   10.107.88.44   <pending>     3333:32575/TCP   3s
+kubernetes         ClusterIP      10.96.0.1      <none>        443/TCP          9m28s
+nginx              ClusterIP      10.109.49.54   <none>        80/TCP           3s
+

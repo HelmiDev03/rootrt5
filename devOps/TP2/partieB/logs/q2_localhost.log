@@ -1,0 +1,39 @@
+# Question 2 - Acces depuis le navigateur via localhost avec kind
+# Methode 1 : kubectl port-forward (tunnel via l'API server, ideal pour le debogage)
+$ kubectl port-forward svc/web-app 8080:80      (en arriere-plan)
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+
+$ for i in 1 2 3 4 5 6; do curl -s http://localhost:8080/ | grep -oE 'It works!|web-app v2 \(canary\)' | head -1; done
+It works!
+It works!
+It works!
+It works!
+It works!
+It works!
+
+# Verification : quel(s) pod(s) recoivent les requetes passant par le tunnel ? (requetes marquees ?portforward=N)
+$ for i in 1 2 3 4 5 6 7 8; do curl -s -o /dev/null "http://localhost:8080/?portforward=$i"; done; echo "8 requetes envoyees via le tunnel"
+8 requetes envoyees via le tunnel
+
+$ kubectl logs -l app=web-app --prefix --since=60s | grep portforward | grep -o '^\[pod/[^/]*' | sort | uniq -c
+      8 [pod/web-app-5db5686686-vcvsk
+
+# Un seul pod recoit tout : port-forward choisit UN pod du Service au demarrage (pas de repartition de charge).
+# Methode 2 : Ingress + extraPortMappings (ports 80/443 du noeud control-plane publies sur l'hote par kind)
+$ docker port devops-tp-control-plane
+80/tcp -> 0.0.0.0:80
+443/tcp -> 0.0.0.0:443
+6443/tcp -> 127.0.0.1:48090
+30080/tcp -> 0.0.0.0:30080
+
+$ curl -s http://localhost/ | grep -o '<title>.*</title>'
+<title>TP Kubernetes - Application multi-conteneurs</title>
+
+$ curl -s http://localhost/api/visits; echo
+{"visits":12,"servedBy":"api-645bb7565b-2qn56","version":"1.0.0"}
+
+# Methode 3 : NodePort publie par extraPortMappings (port 30080) - cf. Partie 3.2
+$ curl -s http://localhost:30080/ | grep -oE 'It works!|web-app v2 \(canary\)' | head -1
+It works!
+

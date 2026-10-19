@@ -1,0 +1,273 @@
+# Partie 5 - Etape 1 : installation du controleur Ingress NGINX (manifeste dedie a kind, version figee controller-v1.15.1)
+# NB : le projet Ingress NGINX est retire depuis mars 2026 (plus de nouvelles versions) ; il reste fonctionnel pour ce TP.
+$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.15.1/deploy/static/provider/kind/deploy.yaml
+namespace/ingress-nginx created
+serviceaccount/ingress-nginx created
+serviceaccount/ingress-nginx-admission created
+role.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx-admission created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+service/ingress-nginx-controller-admission created
+deployment.apps/ingress-nginx-controller created
+job.batch/ingress-nginx-admission-create created
+job.batch/ingress-nginx-admission-patch created
+ingressclass.networking.k8s.io/nginx created
+validatingwebhookconfiguration.admissionregistration.k8s.io/ingress-nginx-admission created
+
+$ kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=300s
+pod/ingress-nginx-controller-596f5b6bcf-qjllc condition met
+
+$ kubectl get pods,svc -n ingress-nginx -o wide
+NAME                                            READY   STATUS    RESTARTS   AGE   IP            NODE               NOMINATED NODE   READINESS GATES
+pod/ingress-nginx-controller-596f5b6bcf-qjllc   1/1     Running   0          53s   10.244.2.14   devops-tp-worker   <none>           <none>
+
+NAME                                         TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)                      AGE   SELECTOR
+service/ingress-nginx-controller             LoadBalancer   10.96.100.57   172.19.255.201   80:31115/TCP,443:32562/TCP   53s   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
+service/ingress-nginx-controller-admission   ClusterIP      10.96.58.254   <none>           443/TCP                      53s   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
+
+$ kubectl get ingressclass
+NAME    CONTROLLER             PARAMETERS   AGE
+nginx   k8s.io/ingress-nginx   <none>       53s
+
+# Depannage : http://localhost ne repond pas. Le pod du controleur tourne sur un worker, or seul le control-plane publie 80/443 :
+$ curl -s -m 5 -o /dev/null -w 'HTTP %{http_code}\n' http://localhost/ || echo 'localhost:80 injoignable'
+HTTP 000
+localhost:80 injoignable
+
+$ kubectl get deploy ingress-nginx-controller -n ingress-nginx -o jsonpath='nodeSelector={.spec.template.spec.nodeSelector}{"\n"}hostPorts={.spec.template.spec.containers[0].ports[*].hostPort}{"\n"}'
+nodeSelector={"kubernetes.io/os":"linux"}
+hostPorts=80 443
+
+# Cause : ce manifeste ne contraint plus le pod au noeud etiquete ingress-ready=true (cf. kind-config.yaml).
+# Correctif : ajout du nodeSelector ingress-ready=true -> le pod est replanifie sur devops-tp-control-plane
+$ kubectl patch deployment ingress-nginx-controller -n ingress-nginx -p '{"spec":{"template":{"spec":{"nodeSelector":{"ingress-ready":"true","kubernetes.io/os":"linux"}}}}}'
+deployment.apps/ingress-nginx-controller patched
+
+$ kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=300s
+Waiting for deployment "ingress-nginx-controller" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "ingress-nginx-controller" rollout to finish: 0 of 1 updated replicas are available...
+deployment "ingress-nginx-controller" successfully rolled out
+
+$ kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o wide
+NAME                                        READY   STATUS    RESTARTS   AGE   IP           NODE                      NOMINATED NODE   READINESS GATES
+ingress-nginx-controller-575c4d8bc6-z8zwt   1/1     Running   0          88s   10.244.0.5   devops-tp-control-plane   <none>           <none>
+
+$ curl -s -o /dev/null -w 'HTTP %{http_code} (404 du backend par defaut : le controleur repond, aucune regle Ingress encore)\n' http://localhost/
+HTTP 404 (404 du backend par defaut : le controleur repond, aucune regle Ingress encore)
+
+# Partie 5 - Etape 2 : image de l'API (Node.js + Redis), construite localement puis chargee dans les noeuds kind
+$ cat api/index.mjs
+import express from 'express'
+import os from 'os'
+import { createClient } from 'redis'
+
+const PORT = 3000
+const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379'
+const VERSION = process.env.APP_VERSION || '1.0.0'
+
+// Connexion a Redis via le nom DNS du Service ClusterIP "redis"
+const redis = createClient({ url: REDIS_URL })
+redis.on('error', (err) => console.error(`Erreur Redis : ${err.message}`))
+await redis.connect()
+console.log(`Connecte a Redis (${REDIS_URL})`)
+
+const app = express()
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', pod: os.hostname() })
+})
+
+app.get('/api/visits', async (req, res) => {
+  const visits = await redis.incr('visits')
+  console.log(`Visite #${visits} servie par ${os.hostname()}`)
+  res.json({ visits, servedBy: os.hostname(), version: VERSION })
+})
+
+const server = app.listen(PORT, () => {
+  console.log(`API en ecoute sur le port ${PORT}`)
+})
+
+process.on('SIGTERM', () => {
+  server.close(async () => {
+    await redis.close()
+    process.exit(0)
+  })
+})
+
+$ cat api/Dockerfile
+FROM node:24-alpine
+WORKDIR /app
+EXPOSE 3000
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY . ./
+USER node
+CMD ["node", "index.mjs"]
+
+$ docker build -q --provenance=false --sbom=false -t tp-api:1.0.0 .
+sha256:600f7bd84c9749958efa84b4a51e1ccfc8eaf24b33bcd6ae9bfdef5f7c05be5c
+
+$ kind load docker-image tp-api:1.0.0 --name devops-tp
+Image: "tp-api:1.0.0" with ID "sha256:7da823fcdd9fb287cb823d436a4bbc582be6bc886280f1b3f43bee68fe0e43c4" not yet present on node "devops-tp-worker2", loading...
+Image: "tp-api:1.0.0" with ID "sha256:7da823fcdd9fb287cb823d436a4bbc582be6bc886280f1b3f43bee68fe0e43c4" not yet present on node "devops-tp-control-plane", loading...
+Image: "tp-api:1.0.0" with ID "sha256:7da823fcdd9fb287cb823d436a4bbc582be6bc886280f1b3f43bee68fe0e43c4" not yet present on node "devops-tp-worker", loading...
+
+$ docker exec devops-tp-worker crictl images | grep -E "IMAGE|tp-api"
+IMAGE                                                TAG                  IMAGE ID            SIZE
+docker.io/library/tp-api                             1.0.0                600f7bd84c974       66.4MB
+
+# Partie 5 - Etape 3 : deploiement de l'application (namespace, redis, api, web, ingress)
+$ ls k8s/
+00-namespace.yaml
+api.yaml
+ingress.yaml
+redis.yaml
+web.yaml
+
+$ kubectl apply -f k8s/
+namespace/devops-app created
+deployment.apps/api created
+service/api created
+ingress.networking.k8s.io/devops-app created
+deployment.apps/redis created
+service/redis created
+configmap/web-nginx-conf created
+configmap/web-content created
+deployment.apps/web created
+service/web created
+
+$ kubectl rollout status deployment/redis -n devops-app --timeout=300s
+Waiting for deployment "redis" rollout to finish: 0 of 1 updated replicas are available...
+deployment "redis" successfully rolled out
+
+$ kubectl rollout status deployment/api -n devops-app --timeout=300s
+Waiting for deployment "api" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "api" rollout to finish: 1 of 2 updated replicas are available...
+deployment "api" successfully rolled out
+
+$ kubectl rollout status deployment/web -n devops-app --timeout=300s
+deployment "web" successfully rolled out
+
+$ kubectl get all -n devops-app -o wide
+NAME                         READY   STATUS    RESTARTS   AGE   IP            NODE                NOMINATED NODE   READINESS GATES
+pod/api-645bb7565b-2qn56     1/1     Running   0          26s   10.244.1.16   devops-tp-worker2   <none>           <none>
+pod/api-645bb7565b-fw8ds     1/1     Running   0          26s   10.244.2.15   devops-tp-worker    <none>           <none>
+pod/redis-5b7ccf7c6b-2bl7x   1/1     Running   0          26s   10.244.2.16   devops-tp-worker    <none>           <none>
+pod/web-7464644bd6-vcb79     2/2     Running   0          26s   10.244.1.17   devops-tp-worker2   <none>           <none>
+pod/web-7464644bd6-wdn5h     2/2     Running   0          26s   10.244.2.17   devops-tp-worker    <none>           <none>
+
+NAME            TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+service/api     ClusterIP   10.96.182.24   <none>        3000/TCP   27s   app=api
+service/redis   ClusterIP   10.96.250.93   <none>        6379/TCP   26s   app=redis
+service/web     ClusterIP   10.96.27.4     <none>        80/TCP     26s   app=web
+
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS        IMAGES                      SELECTOR
+deployment.apps/api     2/2     2            2           27s   api               tp-api:1.0.0                app=api
+deployment.apps/redis   1/1     1            1           26s   redis             redis:7.4-alpine            app=redis
+deployment.apps/web     2/2     2            2           26s   nginx,log-agent   nginx:alpine,busybox:1.37   app=web
+
+NAME                               DESIRED   CURRENT   READY   AGE   CONTAINERS        IMAGES                      SELECTOR
+replicaset.apps/api-645bb7565b     2         2         2       27s   api               tp-api:1.0.0                app=api,pod-template-hash=645bb7565b
+replicaset.apps/redis-5b7ccf7c6b   1         1         1       26s   redis             redis:7.4-alpine            app=redis,pod-template-hash=5b7ccf7c6b
+replicaset.apps/web-7464644bd6     2         2         2       26s   nginx,log-agent   nginx:alpine,busybox:1.37   app=web,pod-template-hash=7464644bd6
+
+# Partie 5 - Etape 4 : verification de l'Ingress (point d'entree unique depuis l'exterieur)
+$ kubectl get ingress -n devops-app
+NAME         CLASS   HOSTS   ADDRESS     PORTS   AGE
+devops-app   nginx   *       localhost   80      48s
+
+$ kubectl describe ingress devops-app -n devops-app
+Name:             devops-app
+Labels:           <none>
+Namespace:        devops-app
+Address:          localhost
+Ingress Class:    nginx
+Default backend:  <default>
+Rules:
+  Host        Path  Backends
+  ----        ----  --------
+  *           
+              /api   api:3000 (10.244.2.15:3000,10.244.1.16:3000)
+              /      web:80 (10.244.2.17:80,10.244.1.17:80)
+Annotations:  <none>
+Events:
+  Type    Reason  Age                From                      Message
+  ----    ------  ----               ----                      -------
+  Normal  Sync    48s (x2 over 48s)  nginx-ingress-controller  Scheduled for sync
+
+# Depuis Windows (navigateur ou curl) : http://localhost -> Ingress -> Services ClusterIP
+$ curl -s http://localhost/ | grep -E '<title>|Page servie'
+  <title>TP Kubernetes - Application multi-conteneurs</title>
+      <div>Page servie par le pod web : <code>web-7464644bd6-wdn5h</code></div>
+
+$ for i in 1 2 3 4 5 6; do curl -s http://localhost/api/visits; echo; done
+{"visits":1,"servedBy":"api-645bb7565b-fw8ds","version":"1.0.0"}
+{"visits":2,"servedBy":"api-645bb7565b-fw8ds","version":"1.0.0"}
+{"visits":3,"servedBy":"api-645bb7565b-fw8ds","version":"1.0.0"}
+{"visits":4,"servedBy":"api-645bb7565b-2qn56","version":"1.0.0"}
+{"visits":5,"servedBy":"api-645bb7565b-fw8ds","version":"1.0.0"}
+{"visits":6,"servedBy":"api-645bb7565b-fw8ds","version":"1.0.0"}
+
+$ curl -s http://localhost/api/health; echo
+{"status":"ok","pod":"api-645bb7565b-fw8ds"}
+
+# Partie 5 - Etape 5 : communication interne via les Services ClusterIP (noms DNS)
+$ kubectl exec -n devops-app web-7464644bd6-vcb79 -c nginx -- wget -qO- http://api:3000/api/health; echo
+{"status":"ok","pod":"api-645bb7565b-2qn56"}
+
+$ kubectl exec -n devops-app web-7464644bd6-vcb79 -c nginx -- nslookup redis.devops-app.svc.cluster.local | tail -2
+Address: 10.96.250.93
+
+
+$ kubectl exec -n devops-app deploy/redis -- redis-cli GET visits
+6
+
+# Partie 5 - Etape 6 : le pod web est MULTI-CONTENEURS (nginx + sidecar log-agent) partageant un volume emptyDir
+$ kubectl get pod web-7464644bd6-vcb79 -n devops-app -o jsonpath='{range .spec.containers[*]}{.name}{" : "}{.image}{"\n"}{end}'
+nginx : nginx:alpine
+log-agent : busybox:1.37
+
+$ kubectl exec -n devops-app web-7464644bd6-vcb79 -c log-agent -- ls -l /var/log/nginx
+total 4
+-rw-r--r--    1 root     root             0 Oct 19 16:19 access.log
+-rw-r--r--    1 root     root          1328 Oct 19 16:19 error.log
+
+$ kubectl logs -n devops-app web-7464644bd6-vcb79 -c log-agent --tail=4
+
+# Le pod api utilise un init container (wait-for-redis) execute avant le conteneur principal :
+$ kubectl get pod api-645bb7565b-2qn56 -n devops-app -o jsonpath='init: {.spec.initContainers[*].name} | conteneurs: {.spec.containers[*].name}{"\n"}'
+init: wait-for-redis | conteneurs: api
+
+$ kubectl logs -n devops-app api-645bb7565b-2qn56 -c wait-for-redis
+attente de redis...
+attente de redis...
+attente de redis...
+redis est joignable
+
+$ kubectl logs -n devops-app api-645bb7565b-2qn56 -c api --tail=5
+Connecte a Redis (redis://redis:6379)
+API en ecoute sur le port 3000
+Visite #4 servie par api-645bb7565b-2qn56
+
+# Sortie vide ci-dessus : ce pod web n'avait encore servi aucune requete (la page est arrivee sur l'autre replique).
+# On genere du trafic sur la page puis on relit les logs collectes par les sidecars des deux pods web :
+$ for i in 1 2 3 4 5 6 7 8; do curl -s -o /dev/null -w "%{http_code} " http://localhost/; done; echo
+200 200 200 200 200 200 200 200 
+
+$ kubectl logs -n devops-app -l app=web -c log-agent --prefix --tail=4 | cut -c1-140
+[pod/web-7464644bd6-vcb79/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:38 +0000] "GET /favicon.ico HTTP/1.1" 404 567 "http://localhost/api/v
+[pod/web-7464644bd6-vcb79/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-vcb79/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-vcb79/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-wdn5h/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-wdn5h/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-wdn5h/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+[pod/web-7464644bd6-wdn5h/log-agent] 10.244.0.5 - - [19/Oct/2026:16:19:51 +0000] "GET / HTTP/1.1" 200 3192 "-" "curl/7.88.1" "172.19.0.1"
+

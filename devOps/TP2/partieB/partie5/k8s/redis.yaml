@@ -1,0 +1,49 @@
+# Tier "base de donnees" : Redis, joignable uniquement a l'interieur du cluster (ClusterIP)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: devops-app
+  labels:
+    app: redis
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        tier: database
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.4-alpine
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: devops-app
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379

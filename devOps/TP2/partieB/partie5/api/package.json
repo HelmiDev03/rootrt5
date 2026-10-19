@@ -1,0 +1,14 @@
+{
+  "name": "tp-api",
+  "version": "1.0.0",
+  "description": "API Node.js du TP Kubernetes (Partie 5) : compteur de visites stocke dans Redis",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0",
+    "redis": "^6.3.0"
+  }
+}

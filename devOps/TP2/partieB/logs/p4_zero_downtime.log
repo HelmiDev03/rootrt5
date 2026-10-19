@@ -1,0 +1,124 @@
+# Amelioration - Rolling Update sans coupure : maxUnavailable 0 + maxSurge 1 + preStop (sleep 5 s)
+$ diff deployment.yaml deployment-rolling-zero-downtime.yaml
+0a1,5
+> # Amelioration (Partie 4) : Rolling Update sans aucune coupure
+> #  - maxUnavailable: 0 / maxSurge: 1 : on n'arrete un ancien pod qu'apres qu'un nouveau soit pret
+> #  - preStop sleep 5 s : quand un pod passe en Terminating, il est retire des endpoints du Service,
+> #    mais kube-proxy met un court instant a mettre a jour iptables sur tous les noeuds.
+> #    On retarde donc l'envoi de SIGTERM a httpd pour qu'il continue a servir pendant cette propagation.
+8a14,18
+>   strategy:
+>     type: RollingUpdate
+>     rollingUpdate:
+>       maxUnavailable: 0
+>       maxSurge: 1
+16a27
+>       terminationGracePeriodSeconds: 30
+22d32
+<         # Le pod ne recoit du trafic (endpoint du Service) que lorsque httpd accepte les connexions
+26a37,40
+>         lifecycle:
+>           preStop:
+>             sleep:
+>               seconds: 5
+
+# Etape 1 : mise en place de la nouvelle configuration (rollout non mesure : les anciens pods n'ont pas encore de preStop)
+$ kubectl apply -f deployment-rolling-zero-downtime.yaml
+deployment.apps/web-app configured
+
+$ kubectl annotate deployment/web-app kubernetes.io/change-cause="v4 : httpd:2.4 + preStop + maxUnavailable 0 (deployment-rolling-zero-downtime.yaml)" --overwrite
+deployment.apps/web-app annotated
+
+$ kubectl rollout status deployment/web-app --timeout=180s
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+deployment "web-app" successfully rolled out
+
+# Etape 2 : nouvelle mise a jour d'image (vers httpd:latest), mesuree par la sonde
+$ kubectl run availability-probe --image=curlimages/curl --restart=Never --command -- sh -c 'i=0; while true; do i=$((i+1)); c=$(curl -s -o /dev/null -m 1 -w "%{http_code}" http://web-app); echo "$(date +%T) #$i $c"; sleep 0.1; done'
+pod/availability-probe created
+
+$ kubectl set image deployment/web-app httpd=httpd:latest
+deployment.apps/web-app image updated
+
+$ kubectl annotate deployment/web-app kubernetes.io/change-cause="v5 : httpd:latest, rolling update sans coupure" --overwrite
+deployment.apps/web-app annotated
+
+$ kubectl rollout status deployment/web-app --timeout=180s
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+deployment "web-app" successfully rolled out
+
+$ kubectl logs availability-probe   # analyse du journal de la sonde (logs/p4_zero_downtime_sonde.txt)
+requetes envoyees : 178
+reponses HTTP 200 : 178
+echecs (code != 200) : 0
+
+# Transition observee : un nouveau pod est pret AVANT chaque arret d'un ancien pod (qui reste Terminating ~5 s)
+$ kubectl get pods -l app=web-app -w
+NAME                       READY   STATUS    RESTARTS   AGE
+web-app-69fc955ddf-fhmzf   1/1     Running   0          8s
+web-app-69fc955ddf-ks4kw   1/1     Running   0          9s
+web-app-69fc955ddf-qprxl   1/1     Running   0          10s
+web-app-5db5686686-vcvsk   0/1     Pending   0          0s
+web-app-5db5686686-vcvsk   0/1     Pending   0          0s
+web-app-5db5686686-vcvsk   0/1     ContainerCreating   0          0s
+web-app-5db5686686-vcvsk   0/1     ContainerCreating   0          1s
+web-app-5db5686686-vcvsk   0/1     Running             0          1s
+web-app-5db5686686-vcvsk   1/1     Running             0          1s
+web-app-69fc955ddf-fhmzf   1/1     Terminating         0          11s
+web-app-69fc955ddf-fhmzf   1/1     Terminating         0          11s
+web-app-5db5686686-6wqms   0/1     Pending             0          0s
+web-app-5db5686686-6wqms   0/1     Pending             0          0s
+web-app-5db5686686-6wqms   0/1     ContainerCreating   0          0s
+web-app-5db5686686-6wqms   0/1     ContainerCreating   0          1s
+web-app-5db5686686-6wqms   0/1     Running             0          1s
+web-app-5db5686686-6wqms   1/1     Running             0          1s
+web-app-69fc955ddf-ks4kw   1/1     Terminating         0          13s
+web-app-69fc955ddf-ks4kw   1/1     Terminating         0          13s
+web-app-5db5686686-82nd2   0/1     Pending             0          0s
+web-app-5db5686686-82nd2   0/1     Pending             0          0s
+web-app-5db5686686-82nd2   0/1     ContainerCreating   0          0s
+web-app-5db5686686-82nd2   0/1     ContainerCreating   0          1s
+web-app-5db5686686-82nd2   0/1     Running             0          1s
+web-app-5db5686686-82nd2   1/1     Running             0          1s
+web-app-69fc955ddf-qprxl   1/1     Terminating         0          15s
+web-app-69fc955ddf-qprxl   1/1     Terminating         0          15s
+web-app-69fc955ddf-fhmzf   0/1     Completed           0          17s
+web-app-69fc955ddf-fhmzf   0/1     Completed           0          18s
+web-app-69fc955ddf-fhmzf   0/1     Completed           0          18s
+web-app-69fc955ddf-ks4kw   0/1     Completed           0          19s
+web-app-69fc955ddf-ks4kw   0/1     Completed           0          20s
+web-app-69fc955ddf-ks4kw   0/1     Completed           0          20s
+web-app-69fc955ddf-qprxl   0/1     Completed           0          21s
+web-app-69fc955ddf-qprxl   0/1     Completed           0          22s
+web-app-69fc955ddf-qprxl   0/1     Completed           0          22s
+
+$ kubectl rollout history deployment/web-app
+deployment.apps/web-app 
+REVISION  CHANGE-CAUSE
+2         v2 : httpd:latest (kubectl set image)
+3         v3 : httpd:2.4, strategie Recreate (deployment-recreate.yaml)
+4         v4 : httpd:2.4 + preStop + maxUnavailable 0 (deployment-rolling-zero-downtime.yaml)
+5         v5 : httpd:latest, rolling update sans coupure
+
+
+$ kubectl get pods -l app=web-app -o wide
+NAME                       READY   STATUS    RESTARTS   AGE   IP            NODE                NOMINATED NODE   READINESS GATES
+web-app-5db5686686-6wqms   1/1     Running   0          14s   10.244.2.12   devops-tp-worker    <none>           <none>
+web-app-5db5686686-82nd2   1/1     Running   0          13s   10.244.1.13   devops-tp-worker2   <none>           <none>
+web-app-5db5686686-vcvsk   1/1     Running   0          15s   10.244.1.12   devops-tp-worker2   <none>           <none>
+

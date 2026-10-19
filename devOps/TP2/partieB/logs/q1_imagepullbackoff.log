@@ -1,0 +1,30 @@
+# Question 1 - Troubleshooting ImagePullBackOff : reproduction des 3 causes classiques
+$ kubectl run cause1-tag-inexistant --image=nginx:9.99-tag-inexistant
+pod/cause1-tag-inexistant created
+
+$ kubectl run cause2-depot-prive --image=docker.io/rt5-devops-groupe/application-privee:1.0
+pod/cause2-depot-prive created
+
+$ kubectl run cause3-registre-injoignable --image=registry.inexistant.invalid/app:1.0
+pod/cause3-registre-injoignable created
+
+$ kubectl get pods cause1-tag-inexistant cause2-depot-prive cause3-registre-injoignable
+NAME                          READY   STATUS             RESTARTS   AGE
+cause1-tag-inexistant         0/1     ImagePullBackOff   0          45s
+cause2-depot-prive            0/1     ImagePullBackOff   0          45s
+cause3-registre-injoignable   0/1     ImagePullBackOff   0          45s
+
+$ kubectl describe pod cause1-tag-inexistant | grep -m1 -E 'Failed to pull image' | sed -E 's/^ +//' | cut -c1-420
+Warning  Failed     5s (x3 over 45s)   kubelet            spec.containers{cause1-tag-inexistant}: Failed to pull image "nginx:9.99-tag-inexistant": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/library/nginx:9.99-tag-inexistant": failed to resolve reference "docker.io/library/nginx:9.99-tag-inexistant": docker.io/library/nginx:9.99-tag-inexistant: not found
+
+$ kubectl describe pod cause2-depot-prive | grep -m1 -E 'Failed to pull image' | sed -E 's/^ +//; s/.*kubelet +//'
+spec.containers{cause2-depot-prive}: Failed to pull image "docker.io/rt5-devops-groupe/application-privee:1.0": failed to pull and unpack image "docker.io/rt5-devops-groupe/application-privee:1.0": failed to resolve reference "docker.io/rt5-devops-groupe/application-privee:1.0": pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed
+
+$ kubectl describe pod cause3-registre-injoignable | grep -m1 -E 'Failed to pull image' | sed -E 's/^ +//; s/.*kubelet +//'
+spec.containers{cause3-registre-injoignable}: Failed to pull image "registry.inexistant.invalid/app:1.0": failed to pull and unpack image "registry.inexistant.invalid/app:1.0": failed to resolve reference "registry.inexistant.invalid/app:1.0": failed to do request: Head "https://registry.inexistant.invalid/v2/app/manifests/1.0": dial tcp: lookup registry.inexistant.invalid on 192.168.65.254:53: no such host
+
+$ kubectl delete pod cause1-tag-inexistant cause2-depot-prive cause3-registre-injoignable --now
+pod "cause1-tag-inexistant" deleted from default namespace
+pod "cause2-depot-prive" deleted from default namespace
+pod "cause3-registre-injoignable" deleted from default namespace
+

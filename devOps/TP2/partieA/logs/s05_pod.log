@@ -1,0 +1,106 @@
+# Section 5.1 - Creation d'un Pod unique
+$ kubectl run nginx --image=nginx
+pod/nginx created
+
+$ kubectl get pods
+NAME    READY   STATUS              RESTARTS   AGE
+nginx   0/1     ContainerCreating   0          0s
+
+$ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          13s
+
+$ kubectl describe pod nginx
+Name:             nginx
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             minikube/192.168.49.2
+Start Time:       Mon, 19 Oct 2026 16:36:33 +0100
+Labels:           run=nginx
+Annotations:      <none>
+Status:           Running
+IP:               10.244.0.3
+IPs:
+  IP:  10.244.0.3
+Containers:
+  nginx:
+    Container ID:   docker://742ea351997d468d80bd8a30641fa6134e1707075472f4195f4c0ac11ab59153
+    Image:          nginx
+    Image ID:       docker-pullable://nginx@sha256:bc4cad49969aaf95eb4eecec5572846f86e59f1e8332aba36ed64b91aff8b724
+    Port:           <none>
+    Host Port:      <none>
+    State:          Running
+      Started:      Mon, 19 Oct 2026 16:36:46 +0100
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-nmt9k (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-nmt9k:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  14s   default-scheduler  Successfully assigned default/nginx to minikube
+  Normal  Pulling    13s   kubelet            spec.containers{nginx}: Pulling image "nginx"
+  Normal  Pulled     1s    kubelet            spec.containers{nginx}: Successfully pulled image "nginx" in 12.159s (12.159s including waiting). Image size: 163221977 bytes.
+  Normal  Created    1s    kubelet            spec.containers{nginx}: Container created
+  Normal  Started    1s    kubelet            spec.containers{nginx}: Container started
+
+# Section 5.2 - Exploration du Pod depuis le noeud
+$ minikube ssh -- "docker ps | grep nginx"
+742ea351997d   nginx                          "/docker-entrypoint.…"   1 second ago         Up Less than a second             k8s_nginx_nginx_default_bc556b91-768e-46aa-b8d5-f528ac51e00f_0
+cbf942b31d83   registry.k8s.io/pause:3.10.2   "/pause"                 14 seconds ago       Up 13 seconds                     k8s_POD_nginx_default_bc556b91-768e-46aa-b8d5-f528ac51e00f_0
+
+$ minikube ssh -- "docker exec 742ea351997d sh -c 'hostname; hostname -i'"
+nginx
+10.244.0.3
+
+$ kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          15s   10.244.0.3   minikube   <none>           <none>
+
+$ minikube ssh -- "curl -s 10.244.0.3 | head -8"
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+
+# Le Pod n'est PAS joignable depuis la machine hote (reseau interne au cluster) :
+$ curl -s -m 5 http://10.244.0.3 || echo 'echec : IP du pod non routable depuis Windows'
+echec : IP du pod non routable depuis Windows
+
+# Section 5.3 - Alias pour kubectl
+$ alias k=kubectl
+
+$ k get pods
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          21s
+
+$ k delete pod nginx
+pod "nginx" deleted from default namespace
+
+$ k get pods
+No resources found in default namespace.
+

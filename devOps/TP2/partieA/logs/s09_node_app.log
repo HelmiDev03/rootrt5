@@ -1,0 +1,215 @@
+# Section 9.2 - Dockerisation de l'application Node.js
+$ cat Dockerfile
+FROM node:24-alpine
+WORKDIR /app
+EXPOSE 3000
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY . ./
+CMD ["node", "index.mjs"]
+
+$ docker build --progress=plain -t localhost:5000/k8s-web-hello:1.0.0 . 2>&1 | grep -vE "^#[0-9]+ (sha256|extracting|resolve|\[internal\] load|DONE 0\.0s)" 
+#0 building with "desktop-linux" instance using docker driver
+
+#1 transferring dockerfile: 181B 0.0s done
+#1 DONE 0.1s
+
+#2 ...
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+
+#2 DONE 1.7s
+
+#4 transferring context: 92B done
+
+#5 transferring context: 30.62kB done
+#5 DONE 0.1s
+
+#6 [1/5] FROM docker.io/library/node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+#6 DONE 11.3s
+
+#6 [1/5] FROM docker.io/library/node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+#6 DONE 11.3s
+
+#7 [2/5] WORKDIR /app
+#7 DONE 0.2s
+
+#8 [3/5] COPY package.json package-lock.json ./
+#8 DONE 0.1s
+
+#9 [4/5] RUN npm ci --omit=dev
+#9 1.331 
+#9 1.331 added 65 packages, and audited 66 packages in 1s
+#9 1.331 
+#9 1.332 28 packages are looking for funding
+#9 1.332   run `npm fund` for details
+#9 1.333 
+#9 1.333 found 0 vulnerabilities
+#9 1.335 npm notice
+#9 1.335 npm notice New major version of npm available! 11.19.1 -> 12.2.0
+#9 1.335 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+#9 1.335 npm notice To update run: npm install -g npm@12.2.0
+#9 1.335 npm notice
+#9 DONE 1.4s
+
+#10 [5/5] COPY . ./
+#10 DONE 0.1s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 0.4s done
+#11 exporting manifest sha256:9deee2929b981c8728ebe46ed6c6caed27e66d5aad83c2746f88d4c47a775023 0.0s done
+#11 exporting config sha256:f852bb45327286e254dedeeb7e59d82f9a8faefa2d176f776c46706b7f7abf36 0.0s done
+#11 exporting attestation manifest sha256:487cb16224e7aac0508abef0bf7ac5b8f5433fb85f546dc45429fecff746f9d5 0.0s done
+#11 exporting manifest list sha256:7aeddaf9f605566c3c805e6567080f3243d412cb87e7ebeea9366f5eede17c02 0.0s done
+#11 naming to localhost:5000/k8s-web-hello:1.0.0
+#11 naming to localhost:5000/k8s-web-hello:1.0.0 done
+#11 unpacking to localhost:5000/k8s-web-hello:1.0.0
+#11 unpacking to localhost:5000/k8s-web-hello:1.0.0 0.3s done
+#11 DONE 0.8s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/1i7qu2pt7cny22rv7wb08evb8
+
+$ docker images localhost:5000/k8s-web-hello
+REPOSITORY                     TAG       IMAGE ID       CREATED        SIZE
+localhost:5000/k8s-web-hello   1.0.0     7aeddaf9f605   1 second ago   255MB
+
+# Test local du conteneur avant de le deployer dans Kubernetes
+$ docker run -d --rm -p 3000:3000 --name hello-test localhost:5000/k8s-web-hello:1.0.0
+dd1e58691322c47ccbbee4c2a5924bccf624fc33ec32f555e39af2ed79cec068
+
+$ curl -s http://localhost:3000; echo
+Hello from the dd1e58691322
+
+$ docker logs hello-test
+Web server is listening at port 3000
+Hello from the dd1e58691322
+
+$ docker stop hello-test
+hello-test
+
+# Section 9.3 - Push de l'image vers un registre (registre prive local a la place de Docker Hub : aucun compte requis)
+$ docker push localhost:5000/k8s-web-hello:1.0.0
+The push refers to repository [localhost:5000/k8s-web-hello]
+960bcf3b645f: Pushed
+2af284e0bab3: Pushed
+58deb750c0cc: Pushed
+3deb39ef5cb7: Pushed
+7ad18212ead1: Pushed
+8a6a94cc3a95: Pushed
+e2de96513ba9: Pushed
+862c5dc468d4: Pushed
+c3fb422c2ba3: Pushed
+1.0.0: digest: sha256:7aeddaf9f605566c3c805e6567080f3243d412cb87e7ebeea9366f5eede17c02 size: 856
+
+$ curl -s http://localhost:5000/v2/_catalog; echo
+{"repositories":["k8s-web-hello"]}
+
+
+$ curl -s http://localhost:5000/v2/k8s-web-hello/tags/list; echo
+{"name":"k8s-web-hello","tags":["1.0.0"]}
+
+
+# Section 9.4 - Deployment base sur l'image personnalisee (tiree du registre par le noeud minikube)
+$ kubectl create deployment k8s-web-hello --image=host.minikube.internal:5000/k8s-web-hello:1.0.0
+deployment.apps/k8s-web-hello created
+
+$ kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+k8s-web-hello-5c89d9df66-x5rvq   1/1     Running   0          5s
+
+$ kubectl describe pod k8s-web-hello-5c89d9df66-x5rvq | sed -n '/^Events:/,$p'
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  5s    default-scheduler  Successfully assigned default/k8s-web-hello-5c89d9df66-x5rvq to minikube
+  Normal  Pulling    4s    kubelet            spec.containers{k8s-web-hello}: Pulling image "host.minikube.internal:5000/k8s-web-hello:1.0.0"
+  Normal  Pulled     0s    kubelet            spec.containers{k8s-web-hello}: Successfully pulled image "host.minikube.internal:5000/k8s-web-hello:1.0.0" in 3.681s (3.681s including waiting). Image size: 176396331 bytes.
+  Normal  Created    0s    kubelet            spec.containers{k8s-web-hello}: Container created
+  Normal  Started    0s    kubelet            spec.containers{k8s-web-hello}: Container started
+
+$ kubectl logs k8s-web-hello-5c89d9df66-x5rvq
+Web server is listening at port 3000
+
+# Section 9.5 - Mise a l'echelle + Service ClusterIP : repartition de charge entre les pods
+$ kubectl scale deployment k8s-web-hello --replicas=4
+deployment.apps/k8s-web-hello scaled
+
+$ kubectl get pods -o wide
+NAME                             READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+k8s-web-hello-5c89d9df66-fnn7x   1/1     Running   0          1s    10.244.0.11   minikube   <none>           <none>
+k8s-web-hello-5c89d9df66-mnb2f   1/1     Running   0          1s    10.244.0.12   minikube   <none>           <none>
+k8s-web-hello-5c89d9df66-sw9vh   1/1     Running   0          1s    10.244.0.10   minikube   <none>           <none>
+k8s-web-hello-5c89d9df66-x5rvq   1/1     Running   0          7s    10.244.0.9    minikube   <none>           <none>
+
+$ kubectl expose deployment k8s-web-hello --port=3000
+service/k8s-web-hello exposed
+
+$ kubectl get svc k8s-web-hello
+NAME            TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+k8s-web-hello   ClusterIP   10.99.123.88   <none>        3000/TCP   0s
+
+$ minikube ssh -- 'for i in 1 2 3 4 5 6 7 8; do curl -s 10.99.123.88:3000; echo; done'
+Hello from the k8s-web-hello-5c89d9df66-sw9vh
+Hello from the k8s-web-hello-5c89d9df66-x5rvq
+Hello from the k8s-web-hello-5c89d9df66-mnb2f
+Hello from the k8s-web-hello-5c89d9df66-mnb2f
+Hello from the k8s-web-hello-5c89d9df66-x5rvq
+Hello from the k8s-web-hello-5c89d9df66-x5rvq
+Hello from the k8s-web-hello-5c89d9df66-mnb2f
+Hello from the k8s-web-hello-5c89d9df66-fnn7x
+
+# Section 9.6 - Service NodePort
+$ kubectl delete svc k8s-web-hello
+service "k8s-web-hello" deleted from default namespace
+
+$ kubectl expose deployment k8s-web-hello --type=NodePort --port=3000
+service/k8s-web-hello exposed
+
+$ kubectl get svc k8s-web-hello
+NAME            TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+k8s-web-hello   NodePort   10.100.113.228   <none>        3000:32661/TCP   0s
+
+$ minikube ssh -- 'curl -s 192.168.49.2:32661; echo'
+
+
+# Reponse vide : commande lancee 0 s apres la creation du Service, avant que kube-proxy n'ait
+# programme ses regles iptables. Le re-test (fin de la section 9.7) repond correctement.
+
+# Acces depuis Windows : avec le driver docker, minikube service ouvre un tunnel (le terminal doit rester ouvert)
+$ minikube service k8s-web-hello --url
+http://127.0.0.1:19886
+! Because you are using a Docker driver on windows, the terminal needs to be open to run it.
+
+$ for i in 1 2 3 4; do curl -s http://127.0.0.1:19886; echo; done
+Hello from the k8s-web-hello-5c89d9df66-fnn7x
+Hello from the k8s-web-hello-5c89d9df66-x5rvq
+Hello from the k8s-web-hello-5c89d9df66-sw9vh
+Hello from the k8s-web-hello-5c89d9df66-sw9vh
+
+# Section 9.7 - Service LoadBalancer
+$ kubectl delete svc k8s-web-hello
+service "k8s-web-hello" deleted from default namespace
+
+$ kubectl expose deployment k8s-web-hello --type=LoadBalancer --port=3000
+service/k8s-web-hello exposed
+
+$ kubectl get svc k8s-web-hello
+NAME            TYPE           CLUSTER-IP   EXTERNAL-IP   PORT(S)          AGE
+k8s-web-hello   LoadBalancer   10.111.0.3   <pending>     3000:31233/TCP   0s
+
+# EXTERNAL-IP reste <pending> : pas de load balancer cloud. On lance minikube tunnel (en arriere-plan) :
+$ kubectl get svc k8s-web-hello
+NAME            TYPE           CLUSTER-IP   EXTERNAL-IP   PORT(S)          AGE
+k8s-web-hello   LoadBalancer   10.111.0.3   127.0.0.1     3000:31233/TCP   16s
+
+$ for i in 1 2 3 4; do curl -s http://127.0.0.1:3000; echo; done
+Hello from the k8s-web-hello-5c89d9df66-mnb2f
+Hello from the k8s-web-hello-5c89d9df66-fnn7x
+Hello from the k8s-web-hello-5c89d9df66-mnb2f
+Hello from the k8s-web-hello-5c89d9df66-fnn7x
+
+# Un Service LoadBalancer est aussi un NodePort (port 31233 ici) : test depuis le noeud
+$ minikube ssh -- 'curl -s 192.168.49.2:31233; echo'
+Hello from the k8s-web-hello-5c89d9df66-x5rvq
+

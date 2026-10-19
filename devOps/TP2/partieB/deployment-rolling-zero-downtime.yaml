@@ -1,0 +1,40 @@
+# Amelioration (Partie 4) : Rolling Update sans aucune coupure
+#  - maxUnavailable: 0 / maxSurge: 1 : on n'arrete un ancien pod qu'apres qu'un nouveau soit pret
+#  - preStop sleep 5 s : quand un pod passe en Terminating, il est retire des endpoints du Service,
+#    mais kube-proxy met un court instant a mettre a jour iptables sur tous les noeuds.
+#    On retarde donc l'envoi de SIGTERM a httpd pour qu'il continue a servir pendant cette propagation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web-app
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: 5

@@ -36,7 +36,8 @@ function contentPath(...parts: string[]): string {
 // Top-level folders that belong to the Next.js app rather than to a subject.
 const APP_DIRS = new Set(["node_modules", "public", "src"]);
 // Build output and dependencies are never shown or served from a work folder.
-const SKIPPED_DIRS = new Set(["node_modules", "target", "build", "dist", "out", "bin", "obj", "__pycache__", "venv"]);
+// tp_support/ holds course material (videos…) kept out of git, see .gitignore.
+const SKIPPED_DIRS = new Set(["node_modules", "target", "build", "dist", "out", "bin", "obj", "__pycache__", "venv", "tp_support"]);
 
 // The statement of a work (one or several files of any type) goes in its "enonce" folder;
 // "Enonce" or "énoncé" work too.

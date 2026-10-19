@@ -1,0 +1,5 @@
+# Espace de noms dedie a l'application multi-conteneurs de la Partie 5
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-app

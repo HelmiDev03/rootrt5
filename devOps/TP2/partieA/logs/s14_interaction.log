@@ -1,0 +1,79 @@
+# Section 14.1 - Verification de la connectivite entre les deux Deployments
+$ minikube service k8s-web-to-nginx --url
+http://127.0.0.1:64657
+! Because you are using a Docker driver on windows, the terminal needs to be open to run it.
+
+$ for i in 1 2 3; do curl -s http://127.0.0.1:64657/; echo; done
+Hello from the k8s-web-to-nginx-66d6567d4b-7p9xr
+Hello from the k8s-web-to-nginx-66d6567d4b-7p9xr
+Hello from the k8s-web-to-nginx-66d6567d4b-2cmtp
+
+$ curl -s http://127.0.0.1:64657/nginx | head -16
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, nginx is successfully installed and working.
+Further configuration is required for the web server, reverse proxy, 
+API gateway, load balancer, content cache, or other features.</p>
+
+
+$ kubectl logs deployment/nginx --tail=3
+2026/10/19 15:45:02 [notice] 1#1: start worker process 44
+10.244.0.26 - - [19/Oct/2026:15:45:30 +0000] "GET / HTTP/1.1" 200 896 "-" "node" "-"
+10.244.0.27 - - [19/Oct/2026:15:45:30 +0000] "GET / HTTP/1.1" 200 896 "-" "node" "-"
+
+# Section 14.2 - Resolution du nom du Service en adresse IP (DNS interne CoreDNS)
+$ kubectl exec k8s-web-to-nginx-66d6567d4b-2cmtp -- nslookup nginx
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+
+** server can't find nginx.cluster.local: NXDOMAIN
+
+** server can't find nginx.svc.cluster.local: NXDOMAIN
+
+Name:	nginx.default.svc.cluster.local
+Address: 10.109.49.54
+
+** server can't find nginx.cluster.local: NXDOMAIN
+
+** server can't find nginx.svc.cluster.local: NXDOMAIN
+
+command terminated with exit code 1
+
+$ kubectl get svc nginx
+NAME    TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+nginx   ClusterIP   10.109.49.54   <none>        80/TCP    32s
+
+$ kubectl exec k8s-web-to-nginx-66d6567d4b-2cmtp -- cat /etc/resolv.conf
+nameserver 10.96.0.10
+search default.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+
+$ kubectl exec k8s-web-to-nginx-66d6567d4b-2cmtp -- wget -qO- http://nginx.default.svc.cluster.local | grep -i '<title>'
+<title>Welcome to nginx!</title>
+
+$ kubectl get svc -n kube-system kube-dns
+NAME       TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
+kube-dns   ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   9m57s
+
+# Section 14.3 - Suppression des deux applications
+$ kubectl delete -f nginx.yaml -f k8s-web-to-nginx.yaml
+service "nginx" deleted from default namespace
+deployment.apps "nginx" deleted from default namespace
+service "k8s-web-to-nginx" deleted from default namespace
+deployment.apps "k8s-web-to-nginx" deleted from default namespace
+
+$ kubectl get all
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   10m
+

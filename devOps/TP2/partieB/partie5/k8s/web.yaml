@@ -1,0 +1,161 @@
+# Tier "frontend" : pod MULTI-CONTENEURS
+#  - nginx     : sert la page (ConfigMap web-content) et ecrit ses logs dans un volume partage
+#  - log-agent : conteneur sidecar qui lit les logs d'acces de nginx dans ce meme volume (emptyDir)
+#                et les publie sur sa sortie standard (kubectl logs <pod> -c log-agent)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-nginx-conf
+  namespace: devops-app
+data:
+  default.conf: |
+    server {
+        listen       80;
+        server_name  _;
+        root         /usr/share/nginx/html;
+
+        location / {
+            index index.html;
+            # injecte le nom du pod web qui a servi la page
+            sub_filter      '__WEB_POD__' '$hostname';
+            sub_filter_once off;
+        }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-content
+  namespace: devops-app
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>TP Kubernetes - Application multi-conteneurs</title>
+      <style>
+        body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: #f4f6fb; color: #1d2433; }
+        header { background: #326ce5; color: #fff; padding: 22px 32px; }
+        header h1 { margin: 0; font-size: 24px; }
+        header p { margin: 6px 0 0; opacity: .9; }
+        main { max-width: 900px; margin: 24px auto; padding: 0 16px; display: grid; gap: 16px; }
+        .card { background: #fff; border-radius: 10px; padding: 18px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+        .box { border: 2px solid #326ce5; border-radius: 8px; padding: 6px 10px; background: #eef3fd; }
+        .arrow { color: #326ce5; font-weight: bold; }
+        .counter { font-size: 56px; font-weight: 700; color: #326ce5; margin: 4px 0; }
+        button { background: #326ce5; color: #fff; border: 0; border-radius: 6px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+        code { background: #eef1f6; padding: 2px 6px; border-radius: 4px; }
+        ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <header>
+        <h1>Application multi-conteneurs sur Kubernetes (kind)</h1>
+        <p>TP DevOps RT5 - Services ClusterIP + Ingress NGINX</p>
+      </header>
+      <main>
+        <div class="card">
+          <strong>Chemin d'une requete</strong>
+          <div class="flow" style="margin-top:10px">
+            <span class="box">Navigateur<br>http://localhost</span><span class="arrow">&rarr;</span>
+            <span class="box">Ingress NGINX</span><span class="arrow">&rarr;</span>
+            <span class="box">Service <b>web</b> (ClusterIP)<br>pod : nginx + log-agent</span>
+            <span class="arrow">|</span>
+            <span class="box">Service <b>api</b> (ClusterIP)<br>pod : init + Node.js</span><span class="arrow">&rarr;</span>
+            <span class="box">Service <b>redis</b> (ClusterIP)</span>
+          </div>
+        </div>
+        <div class="card">
+          <div>Page servie par le pod web : <code>__WEB_POD__</code></div>
+          <div class="counter" id="visits">-</div>
+          <div>visites enregistrees dans Redis &middot; derniere reponse de l'API : <code id="pod">-</code></div>
+          <p><button onclick="visit()">Nouvelle visite</button></p>
+          <strong>Dernieres reponses (repartition de charge entre les pods api)</strong>
+          <ul id="history"></ul>
+        </div>
+      </main>
+      <script>
+        async function visit() {
+          const r = await fetch('/api/visits');
+          const d = await r.json();
+          document.getElementById('visits').textContent = d.visits;
+          document.getElementById('pod').textContent = d.servedBy;
+          const li = document.createElement('li');
+          li.textContent = 'visite #' + d.visits + ' -> ' + d.servedBy + ' (v' + d.version + ')';
+          const h = document.getElementById('history');
+          h.prepend(li);
+          while (h.children.length > 6) h.removeChild(h.lastChild);
+        }
+        (async () => { for (let i = 0; i < 4; i++) await visit(); })();
+      </script>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: devops-app
+  labels:
+    app: web
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+        tier: frontend
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 5
+        volumeMounts:
+        - name: content
+          mountPath: /usr/share/nginx/html
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: logs
+          mountPath: /var/log/nginx
+      - name: log-agent
+        image: busybox:1.37
+        command: ["sh", "-c", "tail -n +1 -F /var/log/nginx/access.log"]
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/nginx
+          readOnly: true
+      volumes:
+      - name: content
+        configMap:
+          name: web-content
+      - name: nginx-conf
+        configMap:
+          name: web-nginx-conf
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: devops-app
+spec:
+  type: ClusterIP
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80

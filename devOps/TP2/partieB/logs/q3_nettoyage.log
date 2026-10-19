@@ -1,0 +1,31 @@
+# Question 3 - Clean-up : suppression de toute l'infrastructure en UNE commande
+$ kind get clusters
+devops-tp
+
+$ docker ps --filter "label=io.x-k8s.kind.cluster=devops-tp" --format "table {{.Names}}\t{{.Status}}"
+NAMES                     STATUS
+devops-tp-worker2         Up 25 minutes
+devops-tp-control-plane   Up 25 minutes
+devops-tp-worker          Up 25 minutes
+
+$ kind delete cluster --name devops-tp
+Deleting cluster "devops-tp" ...
+Deleted nodes: ["devops-tp-worker2" "devops-tp-control-plane" "devops-tp-worker"]
+
+# Verification : plus aucun cluster, plus aucun conteneur-noeud, plus de contexte kubectl
+$ kind get clusters
+No kind clusters found.
+
+$ docker ps -a --filter "label=io.x-k8s.kind.cluster=devops-tp" --format "table {{.Names}}\t{{.Status}}"
+NAMES     STATUS
+
+$ kubectl config get-contexts
+CURRENT   NAME   CLUSTER   AUTHINFO   NAMESPACE
+
+# Nettoyage complementaire : registre Docker local utilise dans la Partie A
+$ docker rm -f local-registry
+local-registry
+
+$ docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+NAMES     IMAGE     STATUS
+

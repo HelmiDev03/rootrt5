@@ -1,0 +1,20 @@
+# Section 16 - Fin du cours : nettoyage complet de la Partie A
+$ kubectl delete -f nginx.yaml -f k8s-web-to-nginx.yaml
+service "nginx" deleted from default namespace
+deployment.apps "nginx" deleted from default namespace
+service "k8s-web-to-nginx" deleted from default namespace
+deployment.apps "k8s-web-to-nginx" deleted from default namespace
+
+$ minikube delete
+* Deleting "minikube" in docker ...
+* Deleting container "minikube" ...
+* Removing C:\Users\helmi\.minikube\machines\minikube ...
+* Removed all traces of the "minikube" cluster.
+
+$ kubectl config get-contexts
+CURRENT   NAME   CLUSTER   AUTHINFO   NAMESPACE
+
+$ docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+NAMES            IMAGE        STATUS
+local-registry   registry:2   Up 21 minutes
+

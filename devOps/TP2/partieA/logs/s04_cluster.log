@@ -1,0 +1,77 @@
+# Registre Docker prive local (remplace Docker Hub pour la section 9.3)
+$ docker run -d -p 5000:5000 --restart=always --name local-registry registry:2
+Unable to find image 'registry:2' locally
+2: Pulling from library/registry
+6d464ea18732: Pulling fs layer
+44cf07d57ee4: Pulling fs layer
+8e82f80af0de: Pulling fs layer
+3493bf46cdec: Pulling fs layer
+bbbdd6c6894b: Pulling fs layer
+3493bf46cdec: Download complete
+6d464ea18732: Download complete
+44cf07d57ee4: Download complete
+44cf07d57ee4: Pull complete
+8e82f80af0de: Download complete
+bbbdd6c6894b: Download complete
+bbbdd6c6894b: Pull complete
+3493bf46cdec: Pull complete
+6d464ea18732: Pull complete
+8e82f80af0de: Pull complete
+Digest: sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+Status: Downloaded newer image for registry:2
+81e855bf77eab275283d04f0928edc2e00d1ac44b828a537c62957f50b376fc4
+
+# Section 4.1 - Creation du cluster Kubernetes avec Minikube (driver docker, runtime docker comme dans la video)
+$ minikube start --driver=docker --container-runtime=docker --cpus=4 --memory=6g --insecure-registry=host.docker.internal:5000 --insecure-registry=host.minikube.internal:5000
+* minikube v1.39.0 on Microsoft Windows 11 Home Single Language 25H2
+  - MINIKUBE_IN_STYLE=false
+* Using the docker driver based on user configuration
+* Using Docker Desktop driver with root privileges
+* Starting "minikube" primary control-plane node in "minikube" cluster
+* Pulling base image v0.0.51 ...
+* Downloading Kubernetes v1.37.0 preload ...
+    > gcr.io/k8s-minikube/kicbase: 507.61 MiB / 507.61 MiB  100.00% (telechargement termine)
+* Verifying Kubernetes components...
+  - Using image gcr.io/k8s-minikube/storage-provisioner:v5
+* Enabled addons: storage-provisioner, default-storageclass
+* Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
+
+$ minikube status
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+
+
+$ minikube ip
+192.168.49.2
+
+$ kubectl cluster-info
+Kubernetes control plane is running at https://127.0.0.1:34784
+CoreDNS is running at https://127.0.0.1:34784/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+$ kubectl get nodes -o wide
+NAME       STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                              CONTAINER-RUNTIME
+minikube   Ready    control-plane   39s   v1.37.0   192.168.49.2   <none>        Debian GNU/Linux 12 (bookworm)   6.18.54.1-microsoft-standard-WSL2 (amd64)   docker://29.7.2
+
+$ kubectl get namespaces
+NAME              STATUS   AGE
+default           Active   39s
+kube-node-lease   Active   39s
+kube-public       Active   39s
+kube-system       Active   39s
+
+$ kubectl get pods --namespace=kube-system -o wide
+NAME                               READY   STATUS    RESTARTS     AGE   IP             NODE       NOMINATED NODE   READINESS GATES
+coredns-559f6c778d-wmfbq           1/1     Running   0            30s   10.244.0.2     minikube   <none>           <none>
+etcd-minikube                      1/1     Running   0            36s   192.168.49.2   minikube   <none>           <none>
+kube-apiserver-minikube            1/1     Running   0            36s   192.168.49.2   minikube   <none>           <none>
+kube-controller-manager-minikube   1/1     Running   0            36s   192.168.49.2   minikube   <none>           <none>
+kube-proxy-6lgq7                   1/1     Running   0            30s   192.168.49.2   minikube   <none>           <none>
+kube-scheduler-minikube            1/1     Running   0            36s   192.168.49.2   minikube   <none>           <none>
+storage-provisioner                1/1     Running   1 (9s ago)   35s   192.168.49.2   minikube   <none>           <none>
+

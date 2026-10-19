@@ -1,0 +1,50 @@
+# Partie 2.1 - Le Pod (unite atomique) : nginx-pod avec l'image nginx:alpine
+$ kubectl run nginx-pod --image=nginx:alpine
+pod/nginx-pod created
+
+$ kubectl get pod nginx-pod -o wide
+NAME        READY   STATUS    RESTARTS   AGE   IP           NODE               NOMINATED NODE   READINESS GATES
+nginx-pod   1/1     Running   0          9s    10.244.2.2   devops-tp-worker   <none>           <none>
+
+# Equivalent declaratif genere automatiquement (--dry-run=client -o yaml) et sauvegarde dans nginx-pod.yaml
+$ kubectl run nginx-pod --image=nginx:alpine --dry-run=client -o yaml | tee nginx-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: nginx-pod
+  name: nginx-pod
+spec:
+  containers:
+  - image: nginx:alpine
+    name: nginx-pod
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+
+# Challenge : entrer dans le pod (kubectl exec) et remplacer index.html par Hello DevOps
+# (session shell : les commandes sont envoyees sur l'entree standard du shell du conteneur avec -i)
+$ kubectl exec -i nginx-pod -- sh   <<< (commandes ci-dessous)
+  echo "--- conteneur : $(hostname), $(cat /etc/alpine-release | sed 's/^/Alpine /')"
+  echo "--- index.html AVANT :"; grep -o '<title>.*</title>' /usr/share/nginx/html/index.html
+  echo "Hello DevOps" > /usr/share/nginx/html/index.html
+  echo "--- index.html APRES :"; cat /usr/share/nginx/html/index.html
+  echo "--- test depuis le pod :"; wget -qO- http://localhost
+--- sortie :
+--- conteneur : nginx-pod, Alpine 3.24.2
+--- index.html AVANT :
+<title>Welcome to nginx!</title>
+--- index.html APRES :
+Hello DevOps
+--- test depuis le pod :
+Hello DevOps
+
+# Verification depuis la machine hote via kubectl port-forward
+$ kubectl port-forward pod/nginx-pod 8081:80   (en arriere-plan)
+Forwarding from 127.0.0.1:8081 -> 80
+Forwarding from [::1]:8081 -> 80
+
+$ curl -s http://localhost:8081
+Hello DevOps
+

@@ -1,0 +1,280 @@
+# Partie 3.1 - Service ClusterIP (communication interne)
+$ kubectl expose deployment web-app --type=ClusterIP --port=80 --target-port=80
+service/web-app exposed
+
+$ kubectl get svc web-app
+NAME      TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+web-app   ClusterIP   10.96.230.49   <none>        80/TCP    0s
+
+$ kubectl describe svc web-app
+Name:                     web-app
+Namespace:                default
+Labels:                   app=web-app
+Annotations:              <none>
+Selector:                 app=web-app
+Type:                     ClusterIP
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.96.230.49
+IPs:                      10.96.230.49
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+Endpoints:                10.244.1.2:80,10.244.2.4:80,10.244.1.3:80
+Session Affinity:         None
+Internal Traffic Policy:  Cluster
+Events:                   <none>
+
+$ kubectl get endpointslices -l kubernetes.io/service-name=web-app
+NAME            ADDRESSTYPE   PORTS   ENDPOINTS                          AGE
+web-app-nh66x   IPv4          80      10.244.1.2,10.244.2.4,10.244.1.3   0s
+
+# Test : pod temporaire curl qui contacte le Service par son nom DNS
+# (pod client conserve pour la suite du TP ; equivalent non interactif de 'kubectl run test-pod -i --tty --rm ... sh' puis 'curl http://web-app')
+$ kubectl run test-pod --image=curlimages/curl --restart=Never --command -- sleep 3600
+pod/test-pod created
+
+$ kubectl get pod test-pod -o wide
+NAME       READY   STATUS    RESTARTS   AGE   IP           NODE               NOMINATED NODE   READINESS GATES
+test-pod   1/1     Running   0          2s    10.244.2.6   devops-tp-worker   <none>           <none>
+
+$ kubectl exec test-pod -- curl -s http://web-app
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>It works! Apache httpd</title>
+</head>
+<body>
+<p>It works!</p>
+</body>
+</html>
+
+$ kubectl exec test-pod -- nslookup web-app.default.svc.cluster.local
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+Name:	web-app.default.svc.cluster.local
+Address: 10.96.230.49
+
+# Partie 3.2 - Service NodePort : modification du type du Service
+$ kubectl patch svc web-app -p '{"spec":{"type":"NodePort"}}'
+service/web-app patched
+
+# Challenge : quel port a ete attribue dynamiquement ?
+$ kubectl get svc web-app
+NAME      TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+web-app   NodePort   10.96.230.49   <none>        80:32144/TCP   7s
+
+$ kubectl get svc web-app -o jsonpath='{.spec.ports[0].nodePort}'; echo
+32144
+
+# Le NodePort est ouvert sur CHAQUE noeud (y compris le control-plane qui n'heberge aucun pod web-app) :
+$ for n in devops-tp-control-plane devops-tp-worker devops-tp-worker2; do printf '%-24s ' $n; docker exec $n curl -s http://localhost:32144; done
+devops-tp-control-plane  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>It works! Apache httpd</title>
+</head>
+<body>
+<p>It works!</p>
+</body>
+</html>
+devops-tp-worker         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>It works! Apache httpd</title>
+</head>
+<body>
+<p>It works!</p>
+</body>
+</html>
+devops-tp-worker2        <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>It works! Apache httpd</title>
+</head>
+<body>
+<p>It works!</p>
+</body>
+</html>
+
+# Acces depuis Windows : seul le port 30080 est publie par kind (extraPortMappings). On fixe donc nodePort=30080 :
+$ kubectl patch svc web-app --type=json -p '[{"op":"replace","path":"/spec/ports/0/nodePort","value":30080}]'
+service/web-app patched
+
+$ kubectl get svc web-app
+NAME      TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+web-app   NodePort   10.96.230.49   <none>        80:30080/TCP   8s
+
+$ curl -s http://localhost:30080
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>It works! Apache httpd</title>
+</head>
+<body>
+<p>It works!</p>
+</body>
+</html>
+
+# Partie 3.3 - Service LoadBalancer
+$ kubectl patch svc web-app -p '{"spec":{"type":"LoadBalancer"}}'
+service/web-app patched
+
+$ kubectl get svc web-app
+NAME      TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+web-app   LoadBalancer   10.96.230.49   <pending>     80:30080/TCP   68s
+
+# Apres 20 s, EXTERNAL-IP reste <pending> : aucun controleur ne fournit de load balancer externe dans kind.
+# Installation de MetalLB (manifeste officiel, version figee v0.16.1)
+$ kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml
+namespace/metallb-system created
+customresourcedefinition.apiextensions.k8s.io/bfdprofiles.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/bgpadvertisements.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/communities.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/configurationstates.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/ipaddresspools.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/l2advertisements.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/servicebgpstatuses.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/servicel2statuses.metallb.io created
+serviceaccount/controller created
+serviceaccount/speaker created
+role.rbac.authorization.k8s.io/controller created
+role.rbac.authorization.k8s.io/pod-lister created
+clusterrole.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrole.rbac.authorization.k8s.io/metallb-system:speaker created
+rolebinding.rbac.authorization.k8s.io/controller created
+rolebinding.rbac.authorization.k8s.io/pod-lister created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:speaker created
+configmap/metallb-excludel2 created
+secret/metallb-webhook-cert created
+service/metallb-webhook-service created
+deployment.apps/controller created
+daemonset.apps/speaker created
+validatingwebhookconfiguration.admissionregistration.k8s.io/metallb-webhook-configuration created
+
+$ kubectl wait --namespace metallb-system --for=condition=ready pod --selector=app=metallb --timeout=180s
+pod/controller-76f4cf76b7-ldwv8 condition met
+timed out waiting for the condition on pods/speaker-6cl6m
+timed out waiting for the condition on pods/speaker-f8gfq
+timed out waiting for the condition on pods/speaker-lzmlb
+
+$ kubectl get pods -n metallb-system -o wide
+NAME                          READY   STATUS             RESTARTS   AGE   IP           NODE                      NOMINATED NODE   READINESS GATES
+controller-76f4cf76b7-ldwv8   1/1     Running            0          3m    10.244.1.4   devops-tp-worker2         <none>           <none>
+speaker-6cl6m                 0/1     Running            0          3m    172.19.0.3   devops-tp-control-plane   <none>           <none>
+speaker-f8gfq                 0/1     ErrImagePull       0          3m    172.19.0.4   devops-tp-worker          <none>           <none>
+speaker-lzmlb                 0/1     ImagePullBackOff   0          3m    172.19.0.2   devops-tp-worker2         <none>           <none>
+
+$ cat metallb-config.yaml
+# Plage d'adresses "externes" que MetalLB peut attribuer aux Services LoadBalancer.
+# Elle est prise dans le sous-reseau du reseau Docker "kind" (docker network inspect kind -> 172.19.0.0/16).
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: kind-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.19.255.200-172.19.255.250
+---
+# Annonce de ces adresses en couche 2 (ARP) sur le reseau des noeuds
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: kind-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - kind-pool
+
+$ kubectl apply -f metallb-config.yaml
+ipaddresspool.metallb.io/kind-pool created
+l2advertisement.metallb.io/kind-l2 created
+
+$ kubectl get svc web-app
+NAME      TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)        AGE
+web-app   LoadBalancer   10.96.230.49   172.19.255.200   80:30080/TCP   4m15s
+
+$ kubectl describe svc web-app | sed -n '/^Events:/,$p'
+Events:
+  Type    Reason       Age   From                Message
+  ----    ------       ----  ----                -------
+  Normal  IPAllocated  6s    metallb-controller  Assigned IP ["172.19.255.200"]
+
+# Test depuis un conteneur branche sur le reseau Docker kind (meme reseau que les noeuds) :
+$ docker run --rm --network kind curlimages/curl -s http://172.19.255.200 | grep -o '<title>.*</title>'
+Unable to find image 'curlimages/curl:latest' locally
+latest: Pulling from curlimages/curl
+410cbd33102b: Pulling fs layer
+410cbd33102b: Download complete
+410cbd33102b: Pull complete
+Digest: sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06
+Status: Downloaded newer image for curlimages/curl:latest
+
+# Depuis Windows, l'IP n'est pas routable (Docker Desktop isole le reseau kind dans sa VM WSL2) :
+$ curl -s -m 5 http://172.19.255.200 || echo "echec : 172.19.255.200 injoignable depuis l'hote Windows"
+echec : 172.19.255.200 injoignable depuis l'hote Windows
+
+# Depannage : les speakers MetalLB des workers sont en ImagePullBackOff (le test ci-dessus ne repond donc pas)
+$ kubectl get pods -n metallb-system -o wide
+NAME                          READY   STATUS             RESTARTS   AGE     IP           NODE                      NOMINATED NODE   READINESS GATES
+controller-76f4cf76b7-ldwv8   1/1     Running            0          3m50s   10.244.1.4   devops-tp-worker2         <none>           <none>
+speaker-6cl6m                 1/1     Running            0          3m50s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+speaker-f8gfq                 0/1     ImagePullBackOff   0          3m50s   172.19.0.4   devops-tp-worker          <none>           <none>
+speaker-lzmlb                 0/1     ImagePullBackOff   0          3m50s   172.19.0.2   devops-tp-worker2         <none>           <none>
+
+$ kubectl describe -n metallb-system pod/speaker-f8gfq | grep -E 'Failed to pull' | cut -c1-330
+  Warning  Failed       2m40s                  kubelet            spec.containers{speaker}: Failed to pull image "quay.io/metallb/speaker:v0.16.1": failed to pull and unpack image "quay.io/metallb/speaker:v0.16.1": short read: expected 38234495 bytes but got 7463108: unexpected EOF
+  Warning  Failed       75s (x3 over 2m28s)    kubelet            spec.containers{speaker}: Failed to pull image "quay.io/metallb/speaker:v0.16.1": failed to pull and unpack image "quay.io/metallb/speaker:v0.16.1": failed to resolve reference "quay.io/metallb/speaker:v0.16.1": failed to do request: Head "https://quay.io/v2/metal
+
+# Cause : reseau instable vers quay.io (telechargement tronque, puis echec de resolution DNS) = 3e cause classique d'ImagePullBackOff.
+# Correctif : tirer l'image une fois sur l'hote puis l'injecter directement dans les noeuds kind (kind load docker-image).
+$ docker pull -q quay.io/metallb/speaker:v0.16.1
+quay.io/metallb/speaker:v0.16.1
+
+$ kind load docker-image quay.io/metallb/speaker:v0.16.1 --name devops-tp
+Image: "quay.io/metallb/speaker:v0.16.1" with ID "sha256:16561e96531e1852d5c229ad7fae6e994dcfa983ff7f4de6b6208b34a4e2ddbc" not yet present on node "devops-tp-worker2", loading...
+Image: "quay.io/metallb/speaker:v0.16.1" with ID "sha256:16561e96531e1852d5c229ad7fae6e994dcfa983ff7f4de6b6208b34a4e2ddbc" not yet present on node "devops-tp-control-plane", loading...
+Image: "quay.io/metallb/speaker:v0.16.1" with ID "sha256:16561e96531e1852d5c229ad7fae6e994dcfa983ff7f4de6b6208b34a4e2ddbc" not yet present on node "devops-tp-worker", loading...
+ERROR: failed to load image: command "docker exec --privileged -i devops-tp-control-plane ctr --namespace=k8s.io images import --all-platforms --digests --snapshotter=overlayfs -" failed with error: exit status 1
+
+Command Output: ctr: content digest sha256:25c25056d4290e54da710a8387259e07cc7d47b6e30d40164a138c9353e83bc9: not found
+
+$ kubectl delete pod -n metallb-system -l component=speaker --field-selector status.phase!=Running
+pod "speaker-f8gfq" deleted from metallb-system namespace
+pod "speaker-lzmlb" deleted from metallb-system namespace
+
+$ kubectl delete pod -n metallb-system -l component=speaker --field-selector spec.nodeName!=devops-tp-control-plane --ignore-not-found
+pod "speaker-6dkqv" deleted from metallb-system namespace
+pod "speaker-cjvrt" deleted from metallb-system namespace
+
+$ kubectl rollout status daemonset/speaker -n metallb-system --timeout=180s
+Waiting for daemon set "speaker" rollout to finish: 1 of 3 updated pods are available...
+Waiting for daemon set "speaker" rollout to finish: 2 of 3 updated pods are available...
+daemon set "speaker" successfully rolled out
+
+$ kubectl get pods -n metallb-system -o wide
+NAME                          READY   STATUS    RESTARTS   AGE     IP           NODE                      NOMINATED NODE   READINESS GATES
+controller-76f4cf76b7-ldwv8   1/1     Running   0          4m44s   10.244.1.4   devops-tp-worker2         <none>           <none>
+speaker-6cl6m                 1/1     Running   0          4m44s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+speaker-b2wb4                 1/1     Running   0          11s     172.19.0.2   devops-tp-worker2         <none>           <none>
+speaker-mwhbp                 1/1     Running   0          11s     172.19.0.4   devops-tp-worker          <none>           <none>
+
+# L'erreur de kind load ne concerne que le control-plane (qui avait deja tire l'image) : sur les workers l'image a bien ete injectee :
+$ kubectl describe -n metallb-system pod/speaker-mwhbp | grep -E 'already present' | cut -c1-200
+  Normal  Pulled     44s   kubelet            spec.containers{speaker}: Container image "quay.io/metallb/speaker:v0.16.1" already present on machine and can be accessed by the pod
+
+# Nouveau test du LoadBalancer depuis le reseau Docker kind (le speaker d'un worker repond maintenant en ARP pour l'IP) :
+$ docker run --rm --network kind curlimages/curl -s http://172.19.255.200 | grep -o '<title>.*</title>'
+<title>It works! Apache httpd</title>
+
+$ kubectl get servicel2statuses -n metallb-system -o custom-columns=SERVICE:.status.serviceName,NODE:.status.node,IP:.status.ip 2>/dev/null || kubectl describe svc web-app | grep -A3 Events
+SERVICE   NODE               IP
+web-app   devops-tp-worker   <none>
+
+$ kubectl get svc web-app
+NAME      TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)        AGE
+web-app   LoadBalancer   10.96.230.49   172.19.255.200   80:30080/TCP   6m30s
+

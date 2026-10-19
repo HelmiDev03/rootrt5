@@ -1,0 +1,47 @@
+# Partie 4.3 : Canary release
+# La v1 (Deployment web-app, 3 repliques) reste en place. On ajoute une v2 avec 1 seule replique
+# portant le meme label app: web-app : le Service web-app (selecteur app: web-app) l'inclut
+# automatiquement dans ses endpoints -> environ 1 requete sur 4 (25 %) arrive sur la v2.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-app-v2-html
+data:
+  index.html: |
+    <html><body><h1>web-app v2 (canary)</h1></body></html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-v2
+  labels:
+    app: web-app
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: web-app      # meme label que la v1 : selectionne par le Service web-app
+        version: v2       # label supplementaire pour distinguer la version
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2
+        volumeMounts:
+        - name: html
+          mountPath: /usr/local/apache2/htdocs
+      volumes:
+      - name: html
+        configMap:
+          name: web-app-v2-html

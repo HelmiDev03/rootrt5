@@ -1,0 +1,108 @@
+# Partie 4.1 - Rolling Update (strategie par defaut)
+$ kubectl annotate deployment/web-app kubernetes.io/change-cause="v1 : httpd:2.4 (deployment.yaml)"
+deployment.apps/web-app annotated
+
+$ kubectl get deployment web-app -o jsonpath="{.spec.strategy}"; echo
+{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}
+
+# Sonde de disponibilite : un pod interroge le Service toutes les ~0,1 s pendant toute la mise a jour
+$ kubectl run availability-probe --image=curlimages/curl --restart=Never --command -- sh -c 'i=0; while true; do i=$((i+1)); c=$(curl -s -o /dev/null -m 1 -w "%{http_code}" http://web-app); echo "$(date +%T) #$i $c"; sleep 0.1; done'
+pod/availability-probe created
+
+$ kubectl set image deployment/web-app httpd=httpd:latest
+deployment.apps/web-app image updated
+
+$ kubectl annotate deployment/web-app kubernetes.io/change-cause="v2 : httpd:latest (kubectl set image)" --overwrite
+deployment.apps/web-app annotated
+
+$ kubectl rollout status deployment/web-app
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "web-app" rollout to finish: 1 old replicas are pending termination...
+deployment "web-app" successfully rolled out
+
+$ kubectl logs availability-probe   # analyse du journal de la sonde (logs/p4_rolling_update_sonde.txt)
+requetes envoyees : 181
+reponses HTTP 200 : 174
+echecs (code != 200) : 7
+premier echec : 16:09:59 #87 000
+dernier echec : 16:10:02 #113 000
+codes d'echec :       7 000 
+
+# Transition observee pendant la mise a jour (kubectl get pods -l app=web-app -w en parallele) :
+$ kubectl get pods -l app=web-app -w
+NAME                       READY   STATUS    RESTARTS   AGE
+web-app-7445c546f6-mzspr   1/1     Running   0          9m59s
+web-app-7445c546f6-vm79p   1/1     Running   0          9m59s
+web-app-7445c546f6-vzn5l   1/1     Running   0          9m36s
+web-app-76b4bc5c95-q6ppr   0/1     Pending   0          0s
+web-app-76b4bc5c95-q6ppr   0/1     Pending   0          0s
+web-app-76b4bc5c95-q6ppr   0/1     ContainerCreating   0          0s
+web-app-76b4bc5c95-q6ppr   0/1     ContainerCreating   0          1s
+web-app-76b4bc5c95-q6ppr   0/1     Running             0          2s
+web-app-76b4bc5c95-q6ppr   1/1     Running             0          2s
+web-app-7445c546f6-vzn5l   1/1     Terminating         0          9m40s
+web-app-76b4bc5c95-tth7j   0/1     Pending             0          0s
+web-app-7445c546f6-vzn5l   1/1     Terminating         0          9m40s
+web-app-76b4bc5c95-tth7j   0/1     Pending             0          0s
+web-app-76b4bc5c95-tth7j   0/1     ContainerCreating   0          0s
+web-app-76b4bc5c95-tth7j   0/1     ContainerCreating   0          1s
+web-app-7445c546f6-vzn5l   0/1     Completed           0          9m41s
+web-app-7445c546f6-vzn5l   0/1     Completed           0          9m42s
+web-app-7445c546f6-vzn5l   0/1     Completed           0          9m42s
+web-app-76b4bc5c95-tth7j   0/1     Running             0          2s
+web-app-76b4bc5c95-tth7j   1/1     Running             0          2s
+web-app-7445c546f6-vm79p   1/1     Terminating         0          10m
+web-app-7445c546f6-vm79p   1/1     Terminating         0          10m
+web-app-76b4bc5c95-cqnkv   0/1     Pending             0          0s
+web-app-76b4bc5c95-cqnkv   0/1     Pending             0          0s
+web-app-76b4bc5c95-cqnkv   0/1     ContainerCreating   0          0s
+web-app-76b4bc5c95-cqnkv   0/1     ContainerCreating   0          0s
+web-app-76b4bc5c95-cqnkv   0/1     Running             0          1s
+web-app-76b4bc5c95-cqnkv   1/1     Running             0          1s
+web-app-7445c546f6-vm79p   0/1     Completed           0          10m
+web-app-7445c546f6-mzspr   1/1     Terminating         0          10m
+web-app-7445c546f6-mzspr   1/1     Terminating         0          10m
+web-app-7445c546f6-vm79p   0/1     Completed           0          10m
+web-app-7445c546f6-vm79p   0/1     Completed           0          10m
+web-app-7445c546f6-mzspr   0/1     Completed           0          10m
+web-app-7445c546f6-mzspr   0/1     Completed           0          10m
+web-app-7445c546f6-mzspr   0/1     Completed           0          10m
+
+$ kubectl get rs -l app=web-app
+NAME                 DESIRED   CURRENT   READY   AGE
+web-app-7445c546f6   0         0         0       10m
+web-app-76b4bc5c95   3         3         3       16s
+
+$ kubectl rollout history deployment/web-app
+deployment.apps/web-app 
+REVISION  CHANGE-CAUSE
+1         v1 : httpd:2.4 (deployment.yaml)
+2         v2 : httpd:latest (kubectl set image)
+
+
+$ kubectl describe deployment web-app | sed -n '/^Events:/,$p'
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  10m   deployment-controller  Scaled up replica set web-app-7445c546f6 from 0 to 3
+  Normal  ScalingReplicaSet  16s   deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 0 to 1
+  Normal  ScalingReplicaSet  14s   deployment-controller  Scaled down replica set web-app-7445c546f6 from 3 to 2
+  Normal  ScalingReplicaSet  14s   deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 1 to 2
+  Normal  ScalingReplicaSet  12s   deployment-controller  Scaled down replica set web-app-7445c546f6 from 2 to 1
+  Normal  ScalingReplicaSet  12s   deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 2 to 3
+  Normal  ScalingReplicaSet  10s   deployment-controller  Scaled down replica set web-app-7445c546f6 from 1 to 0
+
+$ kubectl get pods -l app=web-app -o wide
+NAME                       READY   STATUS    RESTARTS   AGE   IP           NODE                NOMINATED NODE   READINESS GATES
+web-app-76b4bc5c95-cqnkv   1/1     Running   0          11s   10.244.2.8   devops-tp-worker    <none>           <none>
+web-app-76b4bc5c95-q6ppr   1/1     Running   0          16s   10.244.2.7   devops-tp-worker    <none>           <none>
+web-app-76b4bc5c95-tth7j   1/1     Running   0          14s   10.244.1.6   devops-tp-worker2   <none>           <none>
+

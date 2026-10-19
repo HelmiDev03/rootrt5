@@ -1,0 +1,29 @@
+# Partie 4.2 : meme Deployment que deployment.yaml, avec la strategie Recreate
+# (tous les anciens pods sont supprimes AVANT la creation des nouveaux)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web-app
+spec:
+  replicas: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2

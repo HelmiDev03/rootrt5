@@ -1,0 +1,13 @@
+{
+  "name": "k8s-web-hello",
+  "version": "1.0.0",
+  "description": "Application web Node.js (Express) du cours Kubernetes for Beginners",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}

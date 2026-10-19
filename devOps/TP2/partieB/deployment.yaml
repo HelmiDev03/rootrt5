@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        # Le pod ne recoit du trafic (endpoint du Service) que lorsque httpd accepte les connexions
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2

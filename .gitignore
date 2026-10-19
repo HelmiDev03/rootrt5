@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# course support material (third-party videos/PDFs, too large for GitHub)
+tp_support/

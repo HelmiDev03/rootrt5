@@ -1,0 +1,115 @@
+# Partie 1 - Mise en place de l'environnement : outils installes
+$ docker version --format "Docker {{.Server.Version}}"
+Docker 28.3.2
+
+$ kind version
+kind v0.33.0 go1.26.7 windows/amd64
+
+$ kubectl version --client
+Client Version: v1.37.1
+Kustomize Version: v5.8.1
+
+# Creation du cluster multi-noeuds (1 control-plane + 2 workers)
+$ cat kind-config.yaml
+# Cluster kind du TP : 1 control-plane + 2 workers (configuration demandee par l'enonce)
+# Ajouts anticipes pour la Partie 5 et le NodePort (les mappings de ports ne peuvent
+# pas etre ajoutes apres la creation du cluster) :
+#  - extraPortMappings : ports 80/443 (Ingress) et 30080 (NodePort) publies sur localhost
+#  - label ingress-ready=true : le controleur Ingress sera place sur ce noeud
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  labels:
+    ingress-ready: "true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+- role: worker
+- role: worker
+
+$ kind create cluster --name devops-tp --config kind-config.yaml
+Creating cluster "devops-tp" ...
+ • Ensuring node image (kindest/node:v1.37.0) 🖼️  ...
+ ✓ Ensuring node image (kindest/node:v1.37.0) 🖼️
+ • Preparing nodes 📦 📦 📦   ...
+ ✓ Preparing nodes 📦 📦 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing CNI 🔌  ...
+ ✓ Installing CNI 🔌
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+ • Joining worker nodes 🚜  ...
+ ✓ Joining worker nodes 🚜
+Set kubectl context to "kind-devops-tp"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-devops-tp
+
+Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
+
+# Verification : les 3 noeuds doivent etre Ready
+$ kubectl get nodes -o wide
+NAME                      STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                       KERNEL-VERSION                              CONTAINER-RUNTIME
+devops-tp-control-plane   Ready    control-plane   24s   v1.37.0   172.19.0.3    <none>        Debian GNU/Linux 13 (trixie)   6.18.54.1-microsoft-standard-WSL2 (amd64)   containerd://2.3.4
+devops-tp-worker          Ready    <none>          13s   v1.37.0   172.19.0.4    <none>        Debian GNU/Linux 13 (trixie)   6.18.54.1-microsoft-standard-WSL2 (amd64)   containerd://2.3.4
+devops-tp-worker2         Ready    <none>          13s   v1.37.0   172.19.0.2    <none>        Debian GNU/Linux 13 (trixie)   6.18.54.1-microsoft-standard-WSL2 (amd64)   containerd://2.3.4
+
+$ kubectl cluster-info --context kind-devops-tp
+Kubernetes control plane is running at https://127.0.0.1:48090
+CoreDNS is running at https://127.0.0.1:48090/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+$ kind get clusters
+devops-tp
+
+$ kind get nodes --name devops-tp
+devops-tp-worker2
+devops-tp-control-plane
+devops-tp-worker
+
+# Avec kind, chaque noeud Kubernetes est un conteneur Docker :
+$ docker ps --filter "label=io.x-k8s.kind.cluster=devops-tp" --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}"
+NAMES                     IMAGE                  PORTS
+devops-tp-worker2         kindest/node:v1.37.0   
+devops-tp-control-plane   kindest/node:v1.37.0   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:30080->30080/tcp, 127.0.0.1:48090->6443/tcp
+devops-tp-worker          kindest/node:v1.37.0   
+
+$ kubectl get pods -n kube-system -o wide
+NAME                                              READY   STATUS    RESTARTS   AGE   IP           NODE                      NOMINATED NODE   READINESS GATES
+coredns-559f6c778d-dz84s                          1/1     Running   0          15s   10.244.0.4   devops-tp-control-plane   <none>           <none>
+coredns-559f6c778d-tlvr2                          1/1     Running   0          15s   10.244.0.3   devops-tp-control-plane   <none>           <none>
+etcd-devops-tp-control-plane                      1/1     Running   0          22s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+kindnet-6x2ck                                     1/1     Running   0          14s   172.19.0.4   devops-tp-worker          <none>           <none>
+kindnet-9kl2p                                     1/1     Running   0          15s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+kindnet-sdjk7                                     1/1     Running   0          14s   172.19.0.2   devops-tp-worker2         <none>           <none>
+kube-apiserver-devops-tp-control-plane            1/1     Running   0          22s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+kube-controller-manager-devops-tp-control-plane   1/1     Running   0          22s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+kube-proxy-cglsd                                  1/1     Running   0          14s   172.19.0.4   devops-tp-worker          <none>           <none>
+kube-proxy-p4jhh                                  1/1     Running   0          15s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+kube-proxy-vhv69                                  1/1     Running   0          14s   172.19.0.2   devops-tp-worker2         <none>           <none>
+kube-scheduler-devops-tp-control-plane            1/1     Running   0          22s   172.19.0.3   devops-tp-control-plane   <none>           <none>
+
+$ kubectl describe node devops-tp-control-plane | grep -E "^(Roles|Labels|Taints):|ingress-ready"
+Roles:              control-plane
+Labels:             beta.kubernetes.io/arch=amd64
+                    ingress-ready=true
+Taints:             node-role.kubernetes.io/control-plane:NoSchedule
+
+$ kubectl get configmap kube-proxy -n kube-system -o jsonpath="{.data.config\.conf}" | grep -E "^mode:"
+mode: iptables
+
+$ docker network inspect kind --format "{{range .IPAM.Config}}{{.Subnet}} {{end}}"
+fc00:f853:ccd:e793::/64 172.19.0.0/16 
+

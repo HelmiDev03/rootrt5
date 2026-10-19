@@ -1,0 +1,20 @@
+# Plage d'adresses "externes" que MetalLB peut attribuer aux Services LoadBalancer.
+# Elle est prise dans le sous-reseau du reseau Docker "kind" (docker network inspect kind -> 172.19.0.0/16).
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: kind-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.19.255.200-172.19.255.250
+---
+# Annonce de ces adresses en couche 2 (ARP) sur le reseau des noeuds
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: kind-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - kind-pool

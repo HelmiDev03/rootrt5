@@ -1,0 +1,115 @@
+# Partie 4.2 - Strategie Recreate : le YAML est modifie (strategy.type: Recreate)
+$ diff deployment.yaml deployment-recreate.yaml
+0a1,2
+> # Partie 4.2 : meme Deployment que deployment.yaml, avec la strategie Recreate
+> # (tous les anciens pods sont supprimes AVANT la creation des nouveaux)
+8a11,12
+>   strategy:
+>     type: Recreate
+22d25
+<         # Le pod ne recoit du trafic (endpoint du Service) que lorsque httpd accepte les connexions
+
+$ kubectl run availability-probe --image=curlimages/curl --restart=Never --command -- sh -c 'i=0; while true; do i=$((i+1)); c=$(curl -s -o /dev/null -m 1 -w "%{http_code}" http://web-app); echo "$(date +%T) #$i $c"; sleep 0.1; done'
+pod/availability-probe created
+
+$ kubectl apply -f deployment-recreate.yaml
+deployment.apps/web-app configured
+
+$ kubectl annotate deployment/web-app kubernetes.io/change-cause="v3 : httpd:2.4, strategie Recreate (deployment-recreate.yaml)" --overwrite
+deployment.apps/web-app annotated
+
+$ kubectl rollout status deployment/web-app
+Waiting for deployment "web-app" rollout to finish: 0 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 0 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 0 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 0 out of 3 new replicas have been updated...
+Waiting for deployment "web-app" rollout to finish: 0 of 3 updated replicas are available...
+Waiting for deployment "web-app" rollout to finish: 1 of 3 updated replicas are available...
+Waiting for deployment "web-app" rollout to finish: 2 of 3 updated replicas are available...
+deployment "web-app" successfully rolled out
+
+$ kubectl logs availability-probe   # analyse du journal de la sonde (logs/p4_recreate_sonde.txt)
+requetes envoyees : 145
+reponses HTTP 200 : 120
+echecs (code != 200) : 25
+premier echec : 16:11:10 #70 000
+dernier echec : 16:11:15 #94 000
+codes d'echec :      25 000 
+
+# Transition observee (kubectl get pods -l app=web-app -w en parallele) :
+$ kubectl get pods -l app=web-app -w
+NAME                       READY   STATUS    RESTARTS   AGE
+web-app-76b4bc5c95-cqnkv   1/1     Running   0          66s
+web-app-76b4bc5c95-q6ppr   1/1     Running   0          71s
+web-app-76b4bc5c95-tth7j   1/1     Running   0          69s
+web-app-76b4bc5c95-tth7j   1/1     Terminating   0          71s
+web-app-76b4bc5c95-cqnkv   1/1     Terminating   0          68s
+web-app-76b4bc5c95-q6ppr   1/1     Terminating   0          73s
+web-app-76b4bc5c95-cqnkv   1/1     Terminating   0          68s
+web-app-76b4bc5c95-tth7j   1/1     Terminating   0          71s
+web-app-76b4bc5c95-q6ppr   1/1     Terminating   0          73s
+web-app-76b4bc5c95-q6ppr   0/1     Completed     0          75s
+web-app-76b4bc5c95-tth7j   0/1     Completed     0          73s
+web-app-76b4bc5c95-cqnkv   0/1     Completed     0          70s
+web-app-7445c546f6-nfdt7   0/1     Pending       0          0s
+web-app-7445c546f6-76l5d   0/1     Pending       0          0s
+web-app-7445c546f6-nfdt7   0/1     Pending       0          0s
+web-app-7445c546f6-fl5p6   0/1     Pending       0          0s
+web-app-7445c546f6-76l5d   0/1     Pending       0          0s
+web-app-7445c546f6-fl5p6   0/1     Pending       0          0s
+web-app-7445c546f6-nfdt7   0/1     ContainerCreating   0          0s
+web-app-7445c546f6-76l5d   0/1     ContainerCreating   0          0s
+web-app-7445c546f6-fl5p6   0/1     ContainerCreating   0          0s
+web-app-76b4bc5c95-q6ppr   0/1     Completed           0          76s
+web-app-76b4bc5c95-tth7j   0/1     Completed           0          74s
+web-app-76b4bc5c95-q6ppr   0/1     Completed           0          76s
+web-app-76b4bc5c95-tth7j   0/1     Completed           0          74s
+web-app-76b4bc5c95-cqnkv   0/1     Completed           0          71s
+web-app-76b4bc5c95-cqnkv   0/1     Completed           0          71s
+web-app-7445c546f6-76l5d   0/1     ContainerCreating   0          1s
+web-app-7445c546f6-nfdt7   0/1     ContainerCreating   0          1s
+web-app-7445c546f6-fl5p6   0/1     ContainerCreating   0          1s
+web-app-7445c546f6-76l5d   0/1     Running             0          2s
+web-app-7445c546f6-nfdt7   0/1     Running             0          2s
+web-app-7445c546f6-76l5d   1/1     Running             0          2s
+web-app-7445c546f6-fl5p6   1/1     Running             0          2s
+web-app-7445c546f6-nfdt7   1/1     Running             0          2s
+
+$ kubectl get deployment web-app -o jsonpath="{.spec.strategy}"; echo
+{"type":"Recreate"}
+
+$ kubectl describe deployment web-app | sed -n '/^Events:/,$p'
+Events:
+  Type    Reason             Age                From                   Message
+  ----    ------             ----               ----                   -------
+  Normal  ScalingReplicaSet  87s                deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 0 to 1
+  Normal  ScalingReplicaSet  85s                deployment-controller  Scaled down replica set web-app-7445c546f6 from 3 to 2
+  Normal  ScalingReplicaSet  85s                deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 1 to 2
+  Normal  ScalingReplicaSet  83s                deployment-controller  Scaled down replica set web-app-7445c546f6 from 2 to 1
+  Normal  ScalingReplicaSet  83s                deployment-controller  Scaled up replica set web-app-76b4bc5c95 from 2 to 3
+  Normal  ScalingReplicaSet  81s                deployment-controller  Scaled down replica set web-app-7445c546f6 from 1 to 0
+  Normal  ScalingReplicaSet  14s                deployment-controller  Scaled down replica set web-app-76b4bc5c95 from 3 to 0
+  Normal  ScalingReplicaSet  12s (x2 over 11m)  deployment-controller  Scaled up replica set web-app-7445c546f6 from 0 to 3
+
+$ kubectl rollout history deployment/web-app
+deployment.apps/web-app 
+REVISION  CHANGE-CAUSE
+2         v2 : httpd:latest (kubectl set image)
+3         v3 : httpd:2.4, strategie Recreate (deployment-recreate.yaml)
+
+
+# Extrait du journal de la sonde autour de la coupure :
+$ sed -n '68,73p;93,97p' logs/p4_recreate_sonde.txt
+16:11:10 #68 200
+16:11:10 #69 200
+16:11:10 #70 000
+16:11:10 #71 000
+16:11:10 #72 000
+16:11:10 #73 000
+   [...]
+16:11:14 #93 000
+16:11:15 #94 000
+16:11:15 #95 200
+16:11:15 #96 200
+16:11:15 #97 200
+

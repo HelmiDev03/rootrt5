@@ -1,0 +1,99 @@
+# Partie 4.3 - Simulation de Canary Release
+# v1 conservee : Deployment web-app, 3 repliques (page par defaut httpd 'It works!')
+$ kubectl get deployment web-app
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+web-app   3/3     3            3           12m
+
+$ cat web-app-v2.yaml
+# Partie 4.3 : Canary release
+# La v1 (Deployment web-app, 3 repliques) reste en place. On ajoute une v2 avec 1 seule replique
+# portant le meme label app: web-app : le Service web-app (selecteur app: web-app) l'inclut
+# automatiquement dans ses endpoints -> environ 1 requete sur 4 (25 %) arrive sur la v2.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-app-v2-html
+data:
+  index.html: |
+    <html><body><h1>web-app v2 (canary)</h1></body></html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-v2
+  labels:
+    app: web-app
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: web-app      # meme label que la v1 : selectionne par le Service web-app
+        version: v2       # label supplementaire pour distinguer la version
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2
+        volumeMounts:
+        - name: html
+          mountPath: /usr/local/apache2/htdocs
+      volumes:
+      - name: html
+        configMap:
+          name: web-app-v2-html
+
+$ kubectl apply -f web-app-v2.yaml
+configmap/web-app-v2-html created
+deployment.apps/web-app-v2 created
+
+$ kubectl rollout status deployment/web-app-v2 --timeout=120s
+Waiting for deployment "web-app-v2" rollout to finish: 0 of 1 updated replicas are available...
+deployment "web-app-v2" successfully rolled out
+
+$ kubectl get deployments -l app=web-app
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+web-app      3/3     3            3           12m
+web-app-v2   1/1     1            1           2s
+
+$ kubectl get pods -l app=web-app -o wide --show-labels
+NAME                          READY   STATUS    RESTARTS   AGE   IP            NODE                NOMINATED NODE   READINESS GATES   LABELS
+web-app-5db5686686-6wqms      1/1     Running   0          34s   10.244.2.12   devops-tp-worker    <none>           <none>            app=web-app,pod-template-hash=5db5686686
+web-app-5db5686686-82nd2      1/1     Running   0          33s   10.244.1.13   devops-tp-worker2   <none>           <none>            app=web-app,pod-template-hash=5db5686686
+web-app-5db5686686-vcvsk      1/1     Running   0          35s   10.244.1.12   devops-tp-worker2   <none>           <none>            app=web-app,pod-template-hash=5db5686686
+web-app-v2-668b7cdcd5-v6hjb   1/1     Running   0          2s    10.244.1.14   devops-tp-worker2   <none>           <none>            app=web-app,pod-template-hash=668b7cdcd5,version=v2
+
+# Le Service web-app (selecteur app=web-app) a maintenant 4 endpoints : 3 v1 + 1 v2
+$ kubectl get endpointslices -l kubernetes.io/service-name=web-app
+NAME            ADDRESSTYPE   PORTS   ENDPOINTS                                         AGE
+web-app-nh66x   IPv4          80      10.244.1.12,10.244.2.12,10.244.1.13 + 1 more...   11m
+
+# Observation du trafic : 200 requetes envoyees au Service depuis test-pod
+$ kubectl exec test-pod -- sh -c 'for i in $(seq 1 200); do curl -s "http://web-app/?canary=$i" | grep -q canary && echo v2 || echo v1; done | sort | uniq -c'
+    159 v1
+     41 v2
+
+# Repartition par pod (kubectl logs -l app=web-app --prefix pendant le test) :
+$ grep -o '^\[pod/[^/]*' logs/p4_canary_kubectl_logs_complet.txt | sort | uniq -c
+     56 [pod/web-app-5db5686686-6wqms
+     55 [pod/web-app-5db5686686-82nd2
+     48 [pod/web-app-5db5686686-vcvsk
+     41 [pod/web-app-v2-668b7cdcd5-v6hjb
+
+# Regles kube-proxy : 4 endpoints -> probabilites 1/4, 1/3, 1/2 puis le reste = 25 % chacun
+$ docker exec devops-tp-worker sh -c 'iptables-save -t nat | grep -E "^-A KUBE-SVC-.*default/web-app -> "'
+-A KUBE-SVC-CFS55DGLRWS45HHO -m comment --comment "default/web-app -> 10.244.1.12:80" -m statistic --mode random --probability 0.25000000000 -j KUBE-SEP-TRGCMOTYPI3623WR
+-A KUBE-SVC-CFS55DGLRWS45HHO -m comment --comment "default/web-app -> 10.244.1.13:80" -m statistic --mode random --probability 0.33333333349 -j KUBE-SEP-4G244JSM4AULXSFZ
+-A KUBE-SVC-CFS55DGLRWS45HHO -m comment --comment "default/web-app -> 10.244.1.14:80" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-RK2EXD4RDZNTSPTY
+-A KUBE-SVC-CFS55DGLRWS45HHO -m comment --comment "default/web-app -> 10.244.2.12:80" -j KUBE-SEP-GQRPZV4Y2PL6W63J
+

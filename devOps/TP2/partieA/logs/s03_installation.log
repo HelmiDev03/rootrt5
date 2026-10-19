@@ -1,0 +1,21 @@
+# Section 3 - Logiciels requis : Docker (deja installe), kubectl et minikube (binaires officiels verifies par SHA-256)
+$ docker version --format "Docker client {{.Client.Version}} / server {{.Server.Version}}"
+Docker client 28.3.2 / server 28.3.2
+
+$ kubectl version --client
+Client Version: v1.37.1
+Kustomize Version: v5.8.1
+
+$ minikube version
+minikube version: v1.39.0
+commit: 7a9f6a841470a207de8cf4bafcccee0969d8ba10
+
+$ kind version
+kind v0.33.0 go1.26.7 windows/amd64
+
+$ where.exe kubectl minikube kind
+C:\Users\helmi\.local\bin\kubectl.exe
+C:\Program Files\Docker\Docker\resources\bin\kubectl.exe
+C:\Users\helmi\.local\bin\minikube.exe
+C:\Users\helmi\.local\bin\kind.exe
+

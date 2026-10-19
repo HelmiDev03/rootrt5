@@ -1,0 +1,44 @@
+# Section 7.2 - Creation et exploration d'un Service ClusterIP
+$ kubectl expose deployment nginx-deployment --port=8080 --target-port=80
+service/nginx-deployment exposed
+
+$ kubectl get services
+NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+kubernetes         ClusterIP   10.96.0.1        <none>        443/TCP    116s
+nginx-deployment   ClusterIP   10.100.144.202   <none>        8080/TCP   0s
+
+$ kubectl describe service nginx-deployment
+Name:                     nginx-deployment
+Namespace:                default
+Labels:                   app=nginx-deployment
+Annotations:              <none>
+Selector:                 app=nginx-deployment
+Type:                     ClusterIP
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.100.144.202
+IPs:                      10.100.144.202
+Port:                     <unset>  8080/TCP
+TargetPort:               80/TCP
+Endpoints:                10.244.0.6:80,10.244.0.4:80,10.244.0.5:80
+Session Affinity:         None
+Internal Traffic Policy:  Cluster
+Events:                   <none>
+
+$ kubectl get endpointslices -l kubernetes.io/service-name=nginx-deployment
+NAME                     ADDRESSTYPE   PORTS   ENDPOINTS                          AGE
+nginx-deployment-5rhqg   IPv4          80      10.244.0.6,10.244.0.4,10.244.0.5   1s
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+nginx-deployment-5467ddfc68-fdj4b   1/1     Running   0          22s   10.244.0.5   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-htcjx   1/1     Running   0          22s   10.244.0.6   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-vpcgw   1/1     Running   0          25s   10.244.0.4   minikube   <none>           <none>
+
+# Section 7.3 - Connexion au Deployment via l'IP virtuelle du Service (depuis le noeud)
+$ minikube ssh -- "curl -s 10.100.144.202:8080 | grep -i title"
+<title>Welcome to nginx!</title>
+
+$ minikube ssh -- "for i in 1 2 3; do curl -s -o /dev/null -w '%{http_code} ' 10.100.144.202:8080; done; echo"
+200 200 200 
+

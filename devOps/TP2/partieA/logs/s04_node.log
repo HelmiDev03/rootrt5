@@ -1,0 +1,32 @@
+# Section 4.2 - Exploration du noeud Kubernetes (minikube ssh remplace ssh docker@<ip> du driver VirtualBox)
+$ minikube ssh -- "hostname; uname -r; cat /etc/os-release | head -2; ip -4 -o addr show eth0"
+minikube
+6.18.54.1-microsoft-standard-WSL2
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+2: eth0    inet 192.168.49.2/24 brd 192.168.49.255 scope global eth0\       valid_lft forever preferred_lft forever
+
+$ minikube ssh -- "docker ps --format \"table {{.ID}}\t{{.Image}}\t{{.Names}}\" | cut -c1-150"
+CONTAINER ID   IMAGE                          NAMES
+99692f248db6   6e38f40d628d                   k8s_storage-provisioner_storage-provisioner_kube-system_2526e51c-7cf6-4f57-98cb-3257bf4f4c34_1
+4015a2838e70   520212b8b0fc                   k8s_coredns_coredns-559f6c778d-wmfbq_kube-system_abd899d6-830b-4585-a080-24fd9870b209_0
+475a6014ebee   d6a28daf3e6b                   k8s_kube-proxy_kube-proxy-6lgq7_kube-system_18fd68ba-7b04-4a2a-9431-7905f77fd533_0
+1177f97f5285   registry.k8s.io/pause:3.10.2   k8s_POD_coredns-559f6c778d-wmfbq_kube-system_abd899d6-830b-4585-a080-24fd9870b209_0
+7dc543fe0181   registry.k8s.io/pause:3.10.2   k8s_POD_kube-proxy-6lgq7_kube-system_18fd68ba-7b04-4a2a-9431-7905f77fd533_0
+45b1da43a193   registry.k8s.io/pause:3.10.2   k8s_POD_storage-provisioner_kube-system_2526e51c-7cf6-4f57-98cb-3257bf4f4c34_0
+651adc2e25c4   364b3c3d9ec1                   k8s_kube-controller-manager_kube-controller-manager-minikube_kube-system_f16fc85da5b758a253dbb463b009a1a
+72c930ac90fa   1fabf80a1273                   k8s_kube-scheduler_kube-scheduler-minikube_kube-system_bf8c313127a6e547c2d869bd9d35c8dd_0
+be0637b19567   bec5f0e1e2ee                   k8s_kube-apiserver_kube-apiserver-minikube_kube-system_c1e463e1b510290bc91b28bc819b1612_0
+d55c77b0537b   270fbeb69717                   k8s_etcd_etcd-minikube_kube-system_43363425e628a40eeb3afa755b92fbe2_0
+54635965029d   registry.k8s.io/pause:3.10.2   k8s_POD_kube-apiserver-minikube_kube-system_c1e463e1b510290bc91b28bc819b1612_0
+76b8955ad833   registry.k8s.io/pause:3.10.2   k8s_POD_kube-controller-manager-minikube_kube-system_f16fc85da5b758a253dbb463b009a1ad_0
+731f71edca6e   registry.k8s.io/pause:3.10.2   k8s_POD_etcd-minikube_kube-system_43363425e628a40eeb3afa755b92fbe2_0
+d504359d6174   registry.k8s.io/pause:3.10.2   k8s_POD_kube-scheduler-minikube_kube-system_bf8c313127a6e547c2d869bd9d35c8dd_0
+
+$ minikube ssh -- "docker ps | wc -l; ps -eo comm | grep -E \"^(kubelet|dockerd|cri-dockerd|containerd)$\" | sort -u"
+15
+containerd
+cri-dockerd
+dockerd
+kubelet
+

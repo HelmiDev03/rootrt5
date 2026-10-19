@@ -1,0 +1,26 @@
+# Point d'entree unique depuis l'exterieur : le controleur Ingress NGINX (ports 80/443 du noeud
+# control-plane, publies sur localhost par kind) route selon le chemin vers les Services ClusterIP.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-app
+  namespace: devops-app
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 3000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web
+            port:
+              number: 80

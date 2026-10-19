@@ -1,0 +1,83 @@
+# Section 6.1 - Creation et exploration d'un Deployment
+$ kubectl create deployment nginx-deployment --image=nginx
+deployment.apps/nginx-deployment created
+
+$ kubectl get deployments
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   1/1     1            1           2s
+
+$ kubectl get pods
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-5467ddfc68-vpcgw   1/1     Running   0          2s
+
+$ kubectl describe deployment nginx-deployment
+Name:                   nginx-deployment
+Namespace:              default
+CreationTimestamp:      Mon, 19 Oct 2026 16:37:07 +0100
+Labels:                 app=nginx-deployment
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               app=nginx-deployment
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx-deployment
+  Containers:
+   nginx:
+    Image:         nginx
+    Port:          <none>
+    Host Port:     <none>
+    Environment:   <none>
+    Mounts:        <none>
+  Volumes:         <none>
+  Node-Selectors:  <none>
+  Tolerations:     <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   nginx-deployment-5467ddfc68 (1/1 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  2s    deployment-controller  Scaled up replica set nginx-deployment-5467ddfc68 from 0 to 1
+
+$ kubectl get replicasets
+NAME                          DESIRED   CURRENT   READY   AGE
+nginx-deployment-5467ddfc68   1         1         1       2s
+
+$ kubectl describe pod nginx-deployment-5467ddfc68-vpcgw | grep -E '^(Name|Labels|Controlled By|IP):|pod-template-hash'
+Name:             nginx-deployment-5467ddfc68-vpcgw
+Labels:           app=nginx-deployment
+                  pod-template-hash=5467ddfc68
+IP:               10.244.0.4
+Controlled By:  ReplicaSet/nginx-deployment-5467ddfc68
+
+# Section 6.2 - Mise a l'echelle (scaling)
+$ kubectl scale deployment nginx-deployment --replicas=5
+deployment.apps/nginx-deployment scaled
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+nginx-deployment-5467ddfc68-5jrfz   1/1     Running   0          5s    10.244.0.7   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-clfxz   1/1     Running   0          5s    10.244.0.8   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-fdj4b   1/1     Running   0          5s    10.244.0.5   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-htcjx   1/1     Running   0          5s    10.244.0.6   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-vpcgw   1/1     Running   0          8s    10.244.0.4   minikube   <none>           <none>
+
+$ kubectl scale deployment nginx-deployment --replicas=3
+deployment.apps/nginx-deployment scaled
+
+$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+nginx-deployment-5467ddfc68-fdj4b   1/1     Running   0          8s    10.244.0.5   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-htcjx   1/1     Running   0          8s    10.244.0.6   minikube   <none>           <none>
+nginx-deployment-5467ddfc68-vpcgw   1/1     Running   0          11s   10.244.0.4   minikube   <none>           <none>
+
+# Section 6.3 - Connexion a un des Pods via son adresse IP (depuis le noeud)
+$ minikube ssh -- "curl -s 10.244.0.5 | grep -i title"
+<title>Welcome to nginx!</title>
+

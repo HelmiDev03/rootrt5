@@ -1,0 +1,169 @@
+# Section 10.1 - Modification du code (version 2) puis nouvelle image 2.0.0
+$ diff index.v1.mjs k8s-web-hello/index.mjs
+8c8
+<   const helloMessage = `Hello from the ${os.hostname()}`
+---
+>   const helloMessage = `VERSION 2: Hello from the ${os.hostname()}`
+
+$ docker build -q -t localhost:5000/k8s-web-hello:2.0.0 .
+sha256:dcdbb0cca950acd9eba79ed3b822797990c99cb0fa4ad97589cbef681460e697
+
+$ docker push -q localhost:5000/k8s-web-hello:2.0.0
+localhost:5000/k8s-web-hello:2.0.0
+
+$ curl -s http://localhost:5000/v2/k8s-web-hello/tags/list; echo
+{"name":"k8s-web-hello","tags":["2.0.0","1.0.0"]}
+
+
+$ kubectl get deployment k8s-web-hello -o jsonpath="{.spec.template.spec.containers[0].name} -> {.spec.template.spec.containers[0].image}"; echo
+k8s-web-hello -> host.minikube.internal:5000/k8s-web-hello:1.0.0
+
+$ kubectl set image deployment k8s-web-hello k8s-web-hello=host.minikube.internal:5000/k8s-web-hello:2.0.0
+deployment.apps/k8s-web-hello image updated
+
+$ kubectl rollout status deployment k8s-web-hello
+Waiting for deployment "k8s-web-hello" rollout to finish: 2 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 2 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 2 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 2 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 3 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 3 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 3 out of 4 new replicas have been updated...
+Waiting for deployment "k8s-web-hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "k8s-web-hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "k8s-web-hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "k8s-web-hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "k8s-web-hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "k8s-web-hello" rollout to finish: 3 of 4 updated replicas are available...
+deployment "k8s-web-hello" successfully rolled out
+
+# Observation de la transition (kubectl get pods -w pendant la mise a jour) :
+$ kubectl get pods -l app=k8s-web-hello -w
+NAME                             READY   STATUS    RESTARTS   AGE
+k8s-web-hello-5c89d9df66-fnn7x   1/1     Running   0          119s
+k8s-web-hello-5c89d9df66-mnb2f   1/1     Running   0          119s
+k8s-web-hello-5c89d9df66-sw9vh   1/1     Running   0          119s
+k8s-web-hello-5c89d9df66-x5rvq   1/1     Running   0          2m5s
+k8s-web-hello-7669769987-h9tqp   0/1     Pending   0          0s
+k8s-web-hello-7669769987-h9tqp   0/1     Pending   0          0s
+k8s-web-hello-5c89d9df66-fnn7x   1/1     Terminating   0          2m1s
+k8s-web-hello-7669769987-h9tqp   0/1     ContainerCreating   0          0s
+k8s-web-hello-7669769987-rxndg   0/1     Pending             0          0s
+k8s-web-hello-5c89d9df66-fnn7x   1/1     Terminating         0          2m1s
+k8s-web-hello-7669769987-rxndg   0/1     Pending             0          0s
+k8s-web-hello-7669769987-rxndg   0/1     ContainerCreating   0          0s
+k8s-web-hello-5c89d9df66-fnn7x   0/1     Completed           0          2m2s
+k8s-web-hello-7669769987-h9tqp   0/1     ContainerCreating   0          1s
+k8s-web-hello-7669769987-rxndg   0/1     ContainerCreating   0          1s
+k8s-web-hello-7669769987-h9tqp   1/1     Running             0          1s
+k8s-web-hello-5c89d9df66-fnn7x   0/1     Completed           0          2m2s
+k8s-web-hello-5c89d9df66-sw9vh   1/1     Terminating         0          2m2s
+k8s-web-hello-5c89d9df66-fnn7x   0/1     Completed           0          2m2s
+k8s-web-hello-7669769987-l5d8c   0/1     Pending             0          0s
+k8s-web-hello-5c89d9df66-sw9vh   1/1     Terminating         0          2m2s
+k8s-web-hello-7669769987-l5d8c   0/1     Pending             0          0s
+k8s-web-hello-7669769987-rxndg   1/1     Running             0          1s
+k8s-web-hello-7669769987-l5d8c   0/1     ContainerCreating   0          0s
+k8s-web-hello-5c89d9df66-mnb2f   1/1     Terminating         0          2m2s
+k8s-web-hello-5c89d9df66-mnb2f   1/1     Terminating         0          2m2s
+k8s-web-hello-7669769987-c4shp   0/1     Pending             0          0s
+k8s-web-hello-7669769987-c4shp   0/1     Pending             0          0s
+k8s-web-hello-7669769987-c4shp   0/1     ContainerCreating   0          0s
+k8s-web-hello-5c89d9df66-sw9vh   0/1     Completed           0          2m3s
+k8s-web-hello-5c89d9df66-mnb2f   0/1     Completed           0          2m3s
+k8s-web-hello-7669769987-l5d8c   0/1     ContainerCreating   0          1s
+k8s-web-hello-7669769987-c4shp   0/1     ContainerCreating   0          1s
+k8s-web-hello-7669769987-l5d8c   1/1     Running             0          1s
+k8s-web-hello-5c89d9df66-x5rvq   1/1     Terminating         0          2m9s
+k8s-web-hello-5c89d9df66-x5rvq   1/1     Terminating         0          2m9s
+k8s-web-hello-7669769987-c4shp   1/1     Running             0          1s
+k8s-web-hello-5c89d9df66-sw9vh   0/1     Completed           0          2m3s
+k8s-web-hello-5c89d9df66-sw9vh   0/1     Completed           0          2m3s
+k8s-web-hello-5c89d9df66-mnb2f   0/1     Completed           0          2m3s
+k8s-web-hello-5c89d9df66-mnb2f   0/1     Completed           0          2m3s
+k8s-web-hello-5c89d9df66-x5rvq   0/1     Completed           0          2m9s
+k8s-web-hello-5c89d9df66-x5rvq   0/1     Completed           0          2m10s
+k8s-web-hello-5c89d9df66-x5rvq   0/1     Completed           0          2m10s
+k8s-web-hello-5c89d9df66-x5rvq   0/1     Completed           0          2m10s
+
+$ kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+k8s-web-hello-7669769987-c4shp   1/1     Running   0          37s
+k8s-web-hello-7669769987-h9tqp   1/1     Running   0          38s
+k8s-web-hello-7669769987-l5d8c   1/1     Running   0          37s
+k8s-web-hello-7669769987-rxndg   1/1     Running   0          38s
+
+$ kubectl get rs
+NAME                       DESIRED   CURRENT   READY   AGE
+k8s-web-hello-5c89d9df66   0         0         0       2m45s
+k8s-web-hello-7669769987   4         4         4       38s
+
+$ kubectl rollout history deployment k8s-web-hello
+deployment.apps/k8s-web-hello 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+
+
+$ kubectl describe deployment k8s-web-hello | sed -n '/^Events:/,$p'
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  2m46s  deployment-controller  Scaled up replica set k8s-web-hello-5c89d9df66 from 0 to 1
+  Normal  ScalingReplicaSet  2m40s  deployment-controller  Scaled up replica set k8s-web-hello-5c89d9df66 from 1 to 4
+  Normal  ScalingReplicaSet  39s    deployment-controller  Scaled up replica set k8s-web-hello-7669769987 from 0 to 1
+  Normal  ScalingReplicaSet  39s    deployment-controller  Scaled down replica set k8s-web-hello-5c89d9df66 from 4 to 3
+  Normal  ScalingReplicaSet  39s    deployment-controller  Scaled up replica set k8s-web-hello-7669769987 from 1 to 2
+  Normal  ScalingReplicaSet  38s    deployment-controller  Scaled down replica set k8s-web-hello-5c89d9df66 from 3 to 2
+  Normal  ScalingReplicaSet  38s    deployment-controller  Scaled up replica set k8s-web-hello-7669769987 from 2 to 3
+  Normal  ScalingReplicaSet  38s    deployment-controller  Scaled down replica set k8s-web-hello-5c89d9df66 from 2 to 1
+  Normal  ScalingReplicaSet  38s    deployment-controller  Scaled up replica set k8s-web-hello-7669769987 from 3 to 4
+  Normal  ScalingReplicaSet  37s    deployment-controller  (combined from similar events): Scaled down replica set k8s-web-hello-5c89d9df66 from 1 to 0
+
+$ minikube ssh -- 'for i in 1 2 3 4; do curl -s 10.111.0.3:3000; echo; done'
+VERSION 2: Hello from the k8s-web-hello-7669769987-rxndg
+VERSION 2: Hello from the k8s-web-hello-7669769987-rxndg
+VERSION 2: Hello from the k8s-web-hello-7669769987-c4shp
+VERSION 2: Hello from the k8s-web-hello-7669769987-rxndg
+
+# Section 10.2 - Que se passe-t-il quand un des pods est supprime ?
+$ kubectl get pods -o wide
+NAME                             READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+k8s-web-hello-7669769987-c4shp   1/1     Running   0          50s   10.244.0.16   minikube   <none>           <none>
+k8s-web-hello-7669769987-h9tqp   1/1     Running   0          51s   10.244.0.13   minikube   <none>           <none>
+k8s-web-hello-7669769987-l5d8c   1/1     Running   0          50s   10.244.0.15   minikube   <none>           <none>
+k8s-web-hello-7669769987-rxndg   1/1     Running   0          51s   10.244.0.14   minikube   <none>           <none>
+
+$ kubectl delete pod k8s-web-hello-7669769987-c4shp
+pod "k8s-web-hello-7669769987-c4shp" deleted from default namespace
+
+$ kubectl get pods -l app=k8s-web-hello -w      (lance en parallele)
+NAME                             READY   STATUS    RESTARTS   AGE
+k8s-web-hello-7669769987-c4shp   1/1     Running   0          50s
+k8s-web-hello-7669769987-h9tqp   1/1     Running   0          51s
+k8s-web-hello-7669769987-l5d8c   1/1     Running   0          50s
+k8s-web-hello-7669769987-rxndg   1/1     Running   0          51s
+k8s-web-hello-7669769987-c4shp   1/1     Terminating   0          52s
+k8s-web-hello-7669769987-n4mhw   0/1     Pending       0          0s
+k8s-web-hello-7669769987-c4shp   1/1     Terminating   0          52s
+k8s-web-hello-7669769987-n4mhw   0/1     Pending       0          0s
+k8s-web-hello-7669769987-n4mhw   0/1     ContainerCreating   0          0s
+k8s-web-hello-7669769987-c4shp   0/1     Completed           0          53s
+k8s-web-hello-7669769987-n4mhw   0/1     ContainerCreating   0          1s
+k8s-web-hello-7669769987-n4mhw   1/1     Running             0          1s
+k8s-web-hello-7669769987-c4shp   0/1     Completed           0          54s
+k8s-web-hello-7669769987-c4shp   0/1     Completed           0          54s
+k8s-web-hello-7669769987-c4shp   0/1     Completed           0          54s
+
+$ kubectl get pods -o wide
+NAME                             READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+k8s-web-hello-7669769987-h9tqp   1/1     Running   0          71s   10.244.0.13   minikube   <none>           <none>
+k8s-web-hello-7669769987-l5d8c   1/1     Running   0          70s   10.244.0.15   minikube   <none>           <none>
+k8s-web-hello-7669769987-n4mhw   1/1     Running   0          18s   10.244.0.17   minikube   <none>           <none>
+k8s-web-hello-7669769987-rxndg   1/1     Running   0          71s   10.244.0.14   minikube   <none>           <none>
+
+$ kubectl get events --field-selector involvedObject.kind=ReplicaSet --sort-by=.lastTimestamp | tail -3
+70s         Normal   SuccessfulDelete   replicaset/k8s-web-hello-5c89d9df66      Deleted pod: k8s-web-hello-5c89d9df66-mnb2f
+69s         Normal   SuccessfulDelete   replicaset/k8s-web-hello-5c89d9df66      Deleted pod: k8s-web-hello-5c89d9df66-x5rvq
+18s         Normal   SuccessfulCreate   replicaset/k8s-web-hello-7669769987      Created pod: k8s-web-hello-7669769987-n4mhw
+
