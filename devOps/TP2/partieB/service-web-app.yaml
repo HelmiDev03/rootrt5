@@ -1,0 +1,20 @@
+# Service web-app au format YAML, dans son etat NodePort de la Partie 3.
+# Pendant le TP, ce Service a ete cree par des commandes (pas par ce fichier) :
+#   kubectl expose deployment web-app --type=ClusterIP --port=80 --target-port=80
+#   kubectl patch svc web-app -p '{"spec":{"type":"NodePort"}}'
+#   kubectl patch svc web-app --type=json -p '[{"op":"replace","path":"/spec/ports/0/nodePort","value":30080}]'
+# Ce fichier donne le meme Service en une seule commande : kubectl apply -f service-web-app.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app
+  labels:
+    app: web-app
+spec:
+  type: NodePort
+  ports:
+  - nodePort: 30080     # QUAND un noeud recoit une requete sur le port 30080
+    port: 80            # (port du Service dans le cluster ; dans le TP : 10.96.230.49:80)
+    targetPort: 80      # ALORS l'envoyer sur le port 80...
+  selector:
+    app: web-app        # ...de l'un des pods portant le label app: web-app
