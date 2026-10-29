@@ -1,0 +1,1239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TP2 — Refactoring SOLID et analyse de packages</title>
+<meta name="description" content="Audit de conception de ShopFlow : diagnostic et refactoring SOLID d'OrderProcessor en Java, puis métriques de packages (Ca, Ce, I, A, D) et principes ADP, SDP, SAP, REP, CCP, CRP.">
+<meta name="author" content="Mohamed Helmi Lakhder &amp; Oussama Bouchalah">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='41' font-family='Segoe UI,Arial,sans-serif' font-size='22' font-weight='700' fill='white' text-anchor='middle'%3ETP2%3C/text%3E%3C/svg%3E">
+<script>
+  // Theme: the choice saved by the toggle (shared with the RT5 site), otherwise the system setting.
+  function applyTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  }
+  applyTheme();
+  // Inside the RT5 site the toggle lives in the site's top bar.
+  if (window.self !== window.top) document.documentElement.classList.add("framed");
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --soft: #f6f7fb; --text: #1b1d26; --muted: #5d6275; --border: #e3e5ee;
+    --accent: #4f46e5; --accent-soft: #eef0ff; --code: #f6f8fa; --warn: #b45309; --warn-soft: #fff8eb;
+    --ok: #15803d; --bad: #c62828;
+    --hl-keyword: #cf222e; --hl-title: #8250df; --hl-const: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #6e7781;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media screen {
+    :root.dark {
+      color-scheme: dark;
+      --bg: #0d0f15; --soft: #141722; --text: #e5e7ef; --muted: #9aa0b4; --border: #242836;
+      --accent: #8b93ff; --accent-soft: #1b1e38; --code: #11141c; --warn: #f5b041; --warn-soft: #231d10;
+      --ok: #4ade80; --bad: #ff6b6b;
+      --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-const: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #8b949e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); max-width: 1220px; margin: 0 auto; }
+  .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 36px 18px; border-right: 1px solid var(--border); }
+  .sidebar .label { margin: 0 10px 10px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: flex; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; line-height: 1.4; }
+  .toc a span { font: 12px/1.6 var(--mono); opacity: .7; }
+  .toc a:hover { background: var(--soft); color: var(--text); }
+  .toc a.active { background: var(--accent-soft); color: var(--accent); }
+  .content { min-width: 0; max-width: 880px; padding: 56px 56px 120px; }
+  .toc-mobile { display: none; }
+
+  .eyebrow { margin: 0 0 12px; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 0 0 12px; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.15; letter-spacing: -.02em; }
+  .authors { margin: 0 0 22px; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--bg); font-size: 14px; font-weight: 500; text-decoration: none; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { opacity: .9; color: #fff; }
+  .btn svg { width: 16px; height: 16px; }
+  button.btn { font-family: inherit; cursor: pointer; }
+  .btn.icon { padding: 8px 10px; }
+  .theme-toggle .i-sun, .dark .theme-toggle .i-moon, .framed .theme-toggle, .framed .print-pdf { display: none; }
+  .dark .theme-toggle .i-sun { display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips a { padding: 3px 11px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 500; text-decoration: none; }
+
+  section { padding-top: 8px; }
+  h2 { margin: 64px 0 20px; padding-top: 28px; border-top: 1px solid var(--border); font-size: 1.65rem; line-height: 1.25; letter-spacing: -.015em; scroll-margin-top: 16px; }
+  h2 .part { display: block; margin-bottom: 6px; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h3 { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 12px; font-size: 1.15rem; line-height: 1.4; }
+  h3 .num { flex: none; min-width: 26px; padding: 1px 7px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-size: 13px; text-align: center; }
+  h3 .tag { flex: none; padding: 1px 8px; border-radius: 7px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+  p, ul, ol { margin: 0 0 14px; }
+  li { margin: 4px 0; }
+  ul, ol { padding-left: 22px; }
+  strong { font-weight: 650; }
+  code { font-family: var(--mono); font-size: .86em; padding: .15em .4em; border-radius: 6px; background: var(--soft); border: 1px solid var(--border); }
+  pre code { padding: 0; border: 0; background: none; font-size: 13.5px; }
+
+  .source { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; color: var(--muted); }
+  .source svg { width: 15px; height: 15px; color: var(--accent); }
+  .callout { padding: 14px 18px; border-left: 3px solid var(--warn); border-radius: 0 10px 10px 0; background: var(--warn-soft); }
+  .callout.info { border-left-color: var(--accent); background: var(--accent-soft); }
+
+  .code { position: relative; margin: 16px 0 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--code); }
+  .code pre { margin: 0; padding: 16px 18px; overflow-x: auto; line-height: 1.6; color: var(--text); }
+  .hljs-keyword, .hljs-type, .hljs-doctag, .hljs-variable.language_ { color: var(--hl-keyword); }
+  .hljs-title, .hljs-title.class_, .hljs-title.function_ { color: var(--hl-title); }
+  .hljs-literal, .hljs-number, .hljs-meta, .hljs-attr, .hljs-variable, .hljs-operator { color: var(--hl-const); }
+  .hljs-string, .hljs-regexp { color: var(--hl-string); }
+  .hljs-built_in, .hljs-symbol { color: var(--hl-builtin); }
+  .hljs-comment { color: var(--hl-comment); }
+  .code .copy { position: absolute; top: 8px; right: 8px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--muted); font: 12px var(--sans); cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .code:hover .copy, .code .copy:focus { opacity: 1; }
+  .console { margin: 12px 0 22px; border-radius: 12px; overflow: hidden; background: #0f1117; border: 1px solid #1f2330; }
+  .console-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #1f2330; }
+  .console-bar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+  .console-bar i:nth-child(2) { background: #febc2e; }
+  .console-bar i:nth-child(3) { background: #28c840; }
+  .console-bar span { margin-left: 8px; font-size: 12px; color: #8b91a5; }
+  .console pre { margin: 0; padding: 14px 18px; overflow-x: auto; color: #d6dae4; line-height: 1.6; }
+
+  figure { margin: 20px 0 24px; }
+  figure.diagram { padding: 20px; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
+  pre.mermaid { margin: 0; font: 12px/1.5 var(--mono); color: var(--muted); }
+  pre.mermaid[data-processed] { display: flex; justify-content: center; }
+  figure.image img { display: block; max-width: 100%; height: auto; margin: 0 auto; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  figcaption { margin-top: 8px; font-size: 13.5px; color: var(--muted); text-align: center; }
+
+  /* Hand-drawn SVG charts (plane I/A, triangle): colors follow the theme */
+  .plots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 28px; }
+  .plots svg { width: 100%; max-width: 340px; height: auto; }
+  svg.triangle { display: block; width: 100%; max-width: 640px; height: auto; margin: 0 auto; }
+  svg.chart text { fill: var(--text); font: 11px var(--sans); }
+  svg.chart .muted { fill: var(--muted); font-size: 10px; }
+  svg.chart .title { font-size: 12.5px; font-weight: 600; }
+  svg.chart .axis { stroke: var(--muted); stroke-width: 1; fill: none; }
+  svg.chart .seq { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+  svg.chart .pain { fill: var(--warn); opacity: .18; }
+  svg.chart .useless { fill: var(--muted); opacity: .15; }
+  svg.chart .pt { fill: var(--accent); }
+  svg.chart .pt.bad { fill: var(--warn); }
+  svg.chart .side { stroke: var(--accent); stroke-width: 2; fill: var(--accent-soft); }
+  svg.chart .move { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  svg.chart .head { fill: var(--muted); }
+
+  .table { margin: 16px 0 22px; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.5; }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--soft); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+
+  @media (max-width: 960px) {
+    .layout { display: block; }
+    .sidebar { display: none; }
+    .content { padding: 32px 20px 80px; }
+    .toc-mobile { display: block; margin: 22px 0 0; border: 1px solid var(--border); border-radius: 12px; }
+    .toc-mobile summary { padding: 12px 16px; font-weight: 600; cursor: pointer; }
+    .toc-mobile .toc { padding: 0 8px 10px; }
+  }
+  /* Print and "Save as PDF": A4, colors as on screen (light mode), no heading left alone at a page bottom */
+  @page { size: A4; margin: 16mm 14mm; }
+  @media print {
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sidebar, .toc-mobile, .actions, .copy { display: none !important; }
+    .layout { display: block; }
+    .content { max-width: none; padding: 0; }
+    pre { white-space: pre-wrap; }
+    /* Denser than on screen: about half the pages */
+    body { font-size: 12.5px; line-height: 1.55; }
+    h1 { font-size: 24px; }
+    h2 { margin: 28px 0 12px; padding-top: 14px; font-size: 19px; }
+    h3 { margin: 18px 0 8px; font-size: 14.5px; }
+    p, ul, ol { margin-bottom: 8px; }
+    pre code, .console pre { font-size: 11px; line-height: 1.45; }
+    .code pre, .console pre { padding: 10px 12px; }
+    .code, .console, figure, .table { margin: 10px 0 14px; }
+    figure.diagram { padding: 10px; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 10px; }
+    h2, h3 { break-after: avoid; }
+    .code, .console, figure, .table, h2, h3 { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <p class="label">Sommaire</p>
+    <nav class="toc" aria-label="Sommaire">
+      <ol>
+        <li><a href="#q11"><span>1.1</span>Diagnostic du code existant</a></li>
+        <li><a href="#q12"><span>1.2</span>Refactoring SRP, OCP, DIP</a></li>
+        <li><a href="#q13"><span>1.3</span>LSP et ISP</a></li>
+        <li><a href="#q14"><span>1.4</span>Validation : CRYPTO et PUSH</a></li>
+        <li><a href="#q21"><span>2.1</span>Métriques des packages</a></li>
+        <li><a href="#q22"><span>2.2</span>Couplage : ADP, SDP, SAP</a></li>
+        <li><a href="#q23"><span>2.3</span>Cohésion : REP, CCP, CRP</a></li>
+        <li><a href="#synthese"><span>★</span>Question de synthèse</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header>
+      <p class="eyebrow">Architectures Réactives et Microservices</p>
+      <h1>TP2 — Refactoring SOLID et analyse de packages</h1>
+      <p class="authors">Mohamed Helmi Lakhder &amp; Oussama Bouchalah</p>
+      <div class="actions">
+        <a class="btn primary" href="../tp2#code" target="_top">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          Code source (VS Code)
+        </a>
+        <a class="btn" href="enonce/TP2_SOLID_Cohesion_Couplage.pdf" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          Énoncé (PDF)
+        </a>
+        <button class="btn print-pdf" type="button" title="Télécharger la documentation en PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+          Télécharger en PDF
+        </button>
+        <button class="btn icon theme-toggle" type="button" aria-label="Basculer entre mode clair et sombre" title="Mode clair / sombre">
+          <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+      </div>
+      <nav class="chips" aria-label="Principes">
+        <a href="#q12">SRP</a><a href="#q12">OCP</a><a href="#q13">LSP</a><a href="#q13">ISP</a><a href="#q12">DIP</a><a href="#q22">ADP</a><a href="#q22">SDP</a><a href="#q22">SAP</a><a href="#q23">REP</a><a href="#q23">CCP</a><a href="#q23">CRP</a>
+      </nav>
+      <details class="toc-mobile">
+        <summary>Sommaire</summary>
+        <nav class="toc">
+          <ol>
+            <li><a href="#q11"><span>1.1</span>Diagnostic du code existant</a></li>
+            <li><a href="#q12"><span>1.2</span>Refactoring SRP, OCP, DIP</a></li>
+            <li><a href="#q13"><span>1.3</span>LSP et ISP</a></li>
+            <li><a href="#q14"><span>1.4</span>Validation : CRYPTO et PUSH</a></li>
+            <li><a href="#q21"><span>2.1</span>Métriques des packages</a></li>
+            <li><a href="#q22"><span>2.2</span>Couplage : ADP, SDP, SAP</a></li>
+            <li><a href="#q23"><span>2.3</span>Cohésion : REP, CCP, CRP</a></li>
+            <li><a href="#synthese"><span>★</span>Question de synthèse</a></li>
+          </ol>
+        </nav>
+      </details>
+    </header>
+
+    <!-- ============================== 1.1 ============================== -->
+    <section>
+      <h2 id="q11"><span class="part">Partie 1 · SOLID</span>1.1 Diagnostic du code existant</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie1/avant" target="_top"><code>partie1/avant/</code></a></p>
+      <p class="callout"><strong>Contexte :</strong> ShopFlow est une boutique en ligne de deux ans dont chaque évolution coûte de plus en plus cher. On audite <code>OrderProcessor</code> et <code>PaymentMethod</code>, puis on refactore <strong>sans sur-ingénierie</strong> : chaque abstraction ajoutée doit répondre à un besoin réel (YAGNI).</p>
+
+      <p>Le code de l'énoncé est recopié tel quel. Pour pouvoir l'exécuter, nous avons ajouté de petites classes qui <strong>simulent</strong> la base de données, l'e-mail et le SMS par un affichage (<code>MySqlDatabase</code>, <code>SmtpClient</code>, <code>SmsGateway</code>), une classe <code>CreditCardPayment</code>, et <code>SubscriptionBilling</code> : le module d'abonnements qui appelle <code>recurringCharge</code> (le commentaire <code>// abonnements</code> de l'énoncé).</p>
+<div class="code"><pre><code class="language-java">// Code existant de l'énoncé, recopié tel quel.
+public class OrderProcessor {
+    public double process(Order order, String paymentType, String notifType) {
+        double total = 0;
+        for (Item i : order.getItems()) total += i.getPrice() * i.getQty();
+        if (order.getCustomerType().equals("VIP")) total *= 0.9;
+
+        switch (paymentType) {
+            case "CREDIT_CARD": System.out.println("Débit CB : " + total); break;
+            case "PAYPAL":      System.out.println("PayPal : " + total);   break;
+            case "CASH":        System.out.println("Espèces : " + total);  break;
+            default: throw new IllegalArgumentException(paymentType);
+        }
+
+        MySqlDatabase db = new MySqlDatabase("jdbc:mysql://localhost/shop");
+        db.save(order, total);
+
+        if (notifType.equals("EMAIL"))
+            new SmtpClient().send(order.getEmail(), "Commande validée");
+        else if (notifType.equals("SMS"))
+            new SmsGateway().send(order.getPhone(), "Commande validée");
+        return total;
+    }
+}</code></pre></div>
+<div class="code"><pre><code class="language-java">public interface PaymentMethod {
+    void pay(double amount);
+    void refund(double amount);
+    void recurringCharge(double amount);   // abonnements
+}
+
+public class CashPayment implements PaymentMethod {
+    public void pay(double a)             { /* encaissement */ }
+    public void refund(double a)          { /* remboursement */ }
+    public void recurringCharge(double a) { throw new UnsupportedOperationException(); }
+}</code></pre></div>
+
+      <p><code>partie1.avant.Main</code> traite trois commandes, puis essaie les trois évolutions demandées à l'équipe : payer en crypto, notifier par push, prélever les abonnés chaque mois. Résultat :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">=== CMD-001 : client VIP, carte bancaire, e-mail ===
+Débit CB : 1125.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-001 enregistrée, total = 1125.0
+E-mail à amira@shopflow.tn : Commande validée
+Total = 1125.0
+=== CMD-002 : client standard, PayPal, SMS ===
+PayPal : 150.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-002 enregistrée, total = 150.0
+SMS au +216 50 333 444 : Commande validée
+Total = 150.0
+=== CMD-003 : client standard, espèces, e-mail ===
+Espèces : 80.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-003 enregistrée, total = 80.0
+E-mail à salma@shopflow.tn : Commande validée
+Total = 80.0
+
+=== Problème 1 : nouveau moyen de paiement CRYPTO ===
+Erreur : java.lang.IllegalArgumentException: CRYPTO
+-&gt; pour accepter CRYPTO, il faut modifier OrderProcessor.process().
+=== Problème 2 : nouveau canal de notification PUSH ===
+Débit CB : 540.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-004 enregistrée, total = 540.0
+-&gt; aucune notification envoyée et aucune erreur : le client n'est jamais prévenu.
+=== Problème 3 : prélèvement mensuel des abonnés (CB, espèces, CB) ===
+Prélèvement mensuel CB : 9.9
+Erreur : java.lang.UnsupportedOperationException
+-&gt; la boucle s'arrête sur CashPayment : le 3e abonné n'est jamais prélevé.</code></pre></div>
+
+      <h3><span class="num">1</span>Tableau de diagnostic</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Symptôme</th><th>Ligne ou zone concernée</th><th>Principe SOLID violé</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Rigidité</strong></td><td><code>switch (paymentType)</code> et <code>if / else if (notifType)</code> dans <code>process()</code> : chaque nouveau moyen de paiement ou canal oblige à modifier, recompiler et retester <code>OrderProcessor</code> (problème 1).</td><td><strong>OCP</strong></td></tr>
+            <tr><td><strong>Fragilité</strong></td><td><code>else if (notifType.equals("SMS"))</code> sans <code>else</code> : un canal inconnu (<code>"PUSH"</code>, ou une faute de frappe comme <code>"Email"</code>) est ignoré sans erreur et le client n'est pas prévenu (problème 2). Les codes texte (<code>"VIP"</code>, <code>"CASH"</code>…) échappent au compilateur : une faute de frappe sur <code>"VIP"</code> supprime la remise sans aucune erreur.</td><td><strong>OCP</strong></td></tr>
+            <tr><td><strong>Fragilité</strong></td><td><code>CashPayment.recurringCharge()</code> lève <code>UnsupportedOperationException</code> : le module d'abonnements, écrit pour <code>PaymentMethod</code>, s'arrête en pleine boucle (problème 3).</td><td><strong>LSP</strong></td></tr>
+            <tr><td><strong>Immobilité</strong></td><td><code>new MySqlDatabase("jdbc:mysql://localhost/shop")</code>, <code>new SmtpClient()</code>, <code>new SmsGateway()</code> dans <code>process()</code> : impossible de réutiliser ou de tester la validation d'une commande sans MySQL, sans serveur SMTP et sans passerelle SMS.</td><td><strong>DIP</strong></td></tr>
+            <tr><td><strong>Viscosité</strong></td><td>URL de la base écrite en dur, aiguillages sur des chaînes : pour un nouveau besoin, le chemin le plus court est d'ajouter un <code>case</code> ou de copier la méthode, pas de concevoir proprement.</td><td><strong>DIP</strong>, <strong>OCP</strong></td></tr>
+            <tr><td><strong>Opacité</strong></td><td><code>process()</code> mélange cinq responsabilités (total, remise, paiement, enregistrement, notification) ; <code>0.9</code> est un nombre magique : « 10 % de remise VIP » n'est écrit nulle part.</td><td><strong>SRP</strong></td></tr>
+            <tr><td><strong>Répétition inutile</strong></td><td><code>"Commande validée"</code> est écrit deux fois ; tout autre traitement qui dépend du moyen de paiement (remboursement, reçu…) devra recopier le même <code>switch</code>.</td><td><strong>SRP</strong>, <strong>OCP</strong></td></tr>
+            <tr><td><strong>Rigidité</strong> (interface « fourre-tout »)</td><td><code>PaymentMethod</code> mélange paiement ponctuel (<code>pay</code>, <code>refund</code>) et abonnement (<code>recurringCharge</code>) : <code>CashPayment</code> doit implémenter une méthode qu'elle ne sait pas faire, et toute évolution des abonnements touche tous les moyens de paiement.</td><td><strong>ISP</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Complexité inutile :</strong> absente ici, le code souffre plutôt d'un <strong>manque</strong> d'abstractions. C'est le risque à surveiller pendant le refactoring : ne créer une interface que pour un besoin réel (voir 1.3, question 3).</p>
+    </section>
+
+    <!-- ============================== 1.2 ============================== -->
+    <section>
+      <h2 id="q12"><span class="part">Partie 1 · SOLID</span>1.2 Refactoring SRP, OCP, DIP</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie1/apres" target="_top"><code>partie1/apres/</code></a></p>
+      <p>Chaque responsabilité de l'ancien <code>process()</code> devient une classe. <code>OrderProcessor</code> ne garde que l'enchaînement des étapes et ne connaît que des <strong>interfaces</strong>, rangées dans son propre package <code>orders</code> (le cœur métier). Les implémentations sont dans <code>billing</code>, <code>notifications</code> et <code>persistence</code>, et seul <code>app.Main</code>, le <strong>point d'assemblage</strong>, les connaît.</p>
+
+      <h3><span class="num">1</span>SRP : une responsabilité par classe</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Responsabilité (dans l'ancien <code>process()</code>)</th><th>Abstraction (package <code>orders</code>)</th><th>Implémentation</th></tr></thead>
+          <tbody>
+            <tr><td>Calcul du total</td><td colspan="2"><code>Order.subtotal()</code>, qui additionne <code>Item.total()</code> : la commande connaît ses articles</td></tr>
+            <tr><td>Remise</td><td><code>DiscountPolicy</code></td><td><code>billing.VipDiscountPolicy</code></td></tr>
+            <tr><td>Paiement</td><td><code>PaymentMethod</code></td><td><code>billing.CreditCardPayment</code>, <code>PaypalPayment</code>, <code>CashPayment</code></td></tr>
+            <tr><td>Enregistrement</td><td><code>OrderRepository</code></td><td><code>persistence.MySqlOrderRepository</code></td></tr>
+            <tr><td>Notification</td><td><code>Notifier</code></td><td><code>notifications.EmailNotifier</code>, <code>SmsNotifier</code></td></tr>
+            <tr><td>Enchaîner les étapes</td><td colspan="2"><code>OrderProcessor</code> (package <code>orders</code>)</td></tr>
+            <tr><td>Choisir les implémentations</td><td colspan="2"><code>Main</code> (package <code>app</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+<figure class="diagram"><pre class="mermaid">classDiagram
+    direction TB
+    namespace orders {
+        class OrderProcessor {
+            +OrderProcessor(DiscountPolicy, PaymentMethod, OrderRepository, Notifier)
+            +process(Order order) double
+        }
+        class DiscountPolicy {
+            &lt;&lt;interface&gt;&gt;
+            +apply(Order order, double subtotal) double
+        }
+        class PaymentMethod {
+            &lt;&lt;interface&gt;&gt;
+            +pay(double amount) void
+            +refund(double amount) void
+        }
+        class OrderRepository {
+            &lt;&lt;interface&gt;&gt;
+            +save(Order order, double total) void
+        }
+        class Notifier {
+            &lt;&lt;interface&gt;&gt;
+            +send(Order order, String message) void
+        }
+    }
+    namespace billing {
+        class VipDiscountPolicy
+        class CreditCardPayment
+        class PaypalPayment
+        class CashPayment
+    }
+    namespace persistence {
+        class MySqlOrderRepository
+    }
+    namespace notifications {
+        class EmailNotifier
+        class SmsNotifier
+    }
+    OrderProcessor --&gt; DiscountPolicy
+    OrderProcessor --&gt; PaymentMethod
+    OrderProcessor --&gt; OrderRepository
+    OrderProcessor --&gt; Notifier
+    DiscountPolicy &lt;|.. VipDiscountPolicy
+    PaymentMethod &lt;|.. CreditCardPayment
+    PaymentMethod &lt;|.. PaypalPayment
+    PaymentMethod &lt;|.. CashPayment
+    OrderRepository &lt;|.. MySqlOrderRepository
+    Notifier &lt;|.. EmailNotifier
+    Notifier &lt;|.. SmsNotifier</pre><figcaption>Diagramme de classes après refactoring (les classes ajoutées en 1.3 et 1.4 ne sont pas représentées)</figcaption></figure>
+
+      <h3><span class="num">2</span><span><code>OrderProcessor</code> : enchaîner, déléguer</span></h3>
+<div class="code"><pre><code class="language-java">/**
+ * Valide une commande. Sa seule responsabilité : enchaîner les étapes (SRP).
+ * Chaque étape est déléguée à une abstraction reçue par le constructeur (DIP) :
+ * un nouveau moyen de paiement ou un nouveau canal ne change rien ici (OCP).
+ */
+public class OrderProcessor {
+
+    private final DiscountPolicy discountPolicy;
+    private final PaymentMethod paymentMethod;
+    private final OrderRepository orderRepository;
+    private final Notifier notifier;
+
+    public OrderProcessor(DiscountPolicy discountPolicy, PaymentMethod paymentMethod,
+                          OrderRepository orderRepository, Notifier notifier) {
+        this.discountPolicy = discountPolicy;
+        this.paymentMethod = paymentMethod;
+        this.orderRepository = orderRepository;
+        this.notifier = notifier;
+    }
+
+    public double process(Order order) {
+        double total = discountPolicy.apply(order, order.subtotal());
+        paymentMethod.pay(total);
+        orderRepository.save(order, total);
+        notifier.send(order, "Commande validée");
+        return total;
+    }
+}</code></pre></div>
+      <ul>
+        <li><strong>SRP</strong> : <code>process()</code> fait 4 lignes, une par étape. Changer la remise, la base ou le canal ne touche plus cette classe.</li>
+        <li><strong>OCP</strong> : plus de <code>switch</code> ni de <code>if</code> sur des chaînes. Un nouveau moyen de paiement est une nouvelle classe qui implémente <code>PaymentMethod</code> (vérifié en 1.4).</li>
+        <li><strong>DIP</strong> : les quatre dépendances sont des interfaces, reçues <strong>par le constructeur</strong>. Plus aucun <code>new</code> d'une classe technique dans le métier.</li>
+      </ul>
+
+      <h3><span class="num">3</span><span>Les abstractions, possédées par <code>orders</code></span></h3>
+<div class="code"><pre><code class="language-java">/** Abstraction : la règle de remise appliquée au sous-total d'une commande. */
+public interface DiscountPolicy {
+    double apply(Order order, double subtotal);
+}
+
+/**
+ * Abstraction : paiement ponctuel d'une commande (encaisser, puis rembourser en cas d'annulation ou de retour).
+ * Tous les moyens de paiement savent le faire.
+ * Le prélèvement d'abonnement n'est plus ici : il est dans RecurringPayment (ISP).
+ */
+public interface PaymentMethod {
+    void pay(double amount);
+    void refund(double amount);
+}
+
+/** Abstraction : enregistrer une commande validée, sans dire où ni comment. */
+public interface OrderRepository {
+    void save(Order order, double total);
+}
+
+/** Abstraction : prévenir le client, quel que soit le canal. */
+public interface Notifier {
+    void send(Order order, String message);
+}</code></pre></div>
+      <p>Ces interfaces sont dans le package du <strong>client</strong> (<code>orders</code>), pas dans celui des implémentations : c'est le cœur métier qui définit ce dont il a besoin (les « ports »), et l'infrastructure qui s'adapte (les « adaptateurs »). <code>PaymentMethod</code> a déjà perdu <code>recurringCharge</code> : c'est le découpage ISP de la question 1.3.</p>
+
+      <h3><span class="num">4</span>Les implémentations</h3>
+<div class="code"><pre><code class="language-java">/** Type de client : une énumération au lieu de la chaîne "VIP", une faute de frappe ne compile plus. */
+public enum CustomerType {
+    STANDARD,
+    VIP
+}
+
+/** La règle de l'ancien code, isolée : 10 % de remise pour les clients VIP. */
+public class VipDiscountPolicy implements DiscountPolicy {
+
+    private static final double VIP_RATE = 0.10;
+
+    @Override
+    public double apply(Order order, double subtotal) {
+        if (order.getCustomerType() == CustomerType.VIP) {
+            return subtotal * (1 - VIP_RATE);
+        }
+        return subtotal;
+    }
+}
+
+/** Enregistrement MySQL (simulé par un affichage). L'URL vient de l'assemblage, plus du code métier. */
+public class MySqlOrderRepository implements OrderRepository {
+
+    private final String url;
+
+    public MySqlOrderRepository(String url) {
+        this.url = url;
+    }
+
+    @Override
+    public void save(Order order, double total) {
+        System.out.println("MySQL (" + url + ") : commande " + order.getId() + " enregistrée, total = " + total);
+    }
+}
+
+/** Notification par e-mail (envoi SMTP simulé par un affichage). */
+public class EmailNotifier implements Notifier {
+
+    @Override
+    public void send(Order order, String message) {
+        System.out.println("E-mail à " + order.getEmail() + " : " + message);
+    }
+}</code></pre></div>
+      <p>Les autres classes (<code>CreditCardPayment</code>, <code>PaypalPayment</code>, <code>CashPayment</code>, <code>SmsNotifier</code>) suivent le même modèle : une classe courte par moyen ou par canal.</p>
+
+      <h3><span class="num">5</span><span>Le point d'assemblage : <code>app.Main</code></span></h3>
+<div class="code"><pre><code class="language-java">DiscountPolicy discount = new VipDiscountPolicy();
+OrderRepository repository = new MySqlOrderRepository("jdbc:mysql://localhost/shop");
+
+System.out.println("=== CMD-001 : client VIP, carte bancaire, e-mail ===");
+OrderProcessor cardEmail = new OrderProcessor(discount, new CreditCardPayment(), repository, new EmailNotifier());
+System.out.println("Total = " + cardEmail.process(cmd001));
+
+System.out.println("=== CMD-002 : client standard, PayPal, SMS ===");
+OrderProcessor paypalSms = new OrderProcessor(discount, new PaypalPayment(), repository, new SmsNotifier());
+System.out.println("Total = " + paypalSms.process(cmd002));</code></pre></div>
+      <p>C'est le <strong>seul</strong> endroit qui fait des <code>new</code> de classes concrètes et qui connaît l'URL de la base (injection par constructeur, à la main ; un conteneur comme Spring ferait le même travail).</p>
+
+      <h3><span class="num">6</span>Vérification : même comportement qu'avant</h3>
+      <p>Les commandes CMD-001 à CMD-003 sont les mêmes dans les deux <code>Main</code>. On compare les 15 premières lignes de chaque sortie :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ head -15 partie1.avant.Main.txt &gt; avant15.txt
+$ head -15 partie1.apres.app.Main.txt &gt; apres15.txt
+$ diff avant15.txt apres15.txt &amp;&amp; echo "identiques ($(wc -l &lt; avant15.txt) lignes)"
+identiques (15 lignes)</code></pre></div>
+      <p>Mêmes totaux (1125.0, 150.0, 80.0), mêmes messages : le refactoring n'a pas changé le comportement.</p>
+
+      <h3><span class="num">7</span><span>Ce dont dépend <code>OrderProcessor</code>, mesuré avec <code>jdeps</code></span></h3>
+      <p><code>jdeps</code> (outil du JDK) lit les fichiers <code>.class</code> compilés et liste les dépendances réelles :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ jdeps -verbose:class -filter:none -include 'tn\.insat\.tp2\.partie1\.avant\.OrderProcessor' -e 'tn\.insat\..*' target/classes
+classes -&gt; target\classes
+   tn.insat.tp2.partie1.avant.OrderProcessor          -&gt; tn.insat.tp2.partie1.avant.Item                    classes
+   tn.insat.tp2.partie1.avant.OrderProcessor          -&gt; tn.insat.tp2.partie1.avant.MySqlDatabase           classes
+   tn.insat.tp2.partie1.avant.OrderProcessor          -&gt; tn.insat.tp2.partie1.avant.Order                   classes
+   tn.insat.tp2.partie1.avant.OrderProcessor          -&gt; tn.insat.tp2.partie1.avant.SmsGateway              classes
+   tn.insat.tp2.partie1.avant.OrderProcessor          -&gt; tn.insat.tp2.partie1.avant.SmtpClient              classes
+
+$ jdeps -verbose:class -filter:none -include 'tn\.insat\.tp2\.partie1\.apres\.orders\.OrderProcessor' -e 'tn\.insat\..*' target/classes
+classes -&gt; target\classes
+   tn.insat.tp2.partie1.apres.orders.OrderProcessor   -&gt; tn.insat.tp2.partie1.apres.orders.DiscountPolicy   classes
+   tn.insat.tp2.partie1.apres.orders.OrderProcessor   -&gt; tn.insat.tp2.partie1.apres.orders.Notifier         classes
+   tn.insat.tp2.partie1.apres.orders.OrderProcessor   -&gt; tn.insat.tp2.partie1.apres.orders.Order            classes
+   tn.insat.tp2.partie1.apres.orders.OrderProcessor   -&gt; tn.insat.tp2.partie1.apres.orders.OrderRepository  classes
+   tn.insat.tp2.partie1.apres.orders.OrderProcessor   -&gt; tn.insat.tp2.partie1.apres.orders.PaymentMethod    classes</code></pre></div>
+      <p>Avant : trois classes techniques concrètes (<code>MySqlDatabase</code>, <code>SmtpClient</code>, <code>SmsGateway</code>). Après : quatre interfaces et <code>Order</code>, une entité du métier (dépendre d'une donnée du domaine est normal). Au niveau des packages :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ jdeps -verbose:package -include 'tn\.insat\.tp2\.partie1\.apres\..*' -e 'tn\.insat\.tp2\.partie1\.apres\..*' target/classes
+classes -&gt; target\classes
+   tn.insat.tp2.partie1.apres.app                     -&gt; tn.insat.tp2.partie1.apres.billing                 classes
+   tn.insat.tp2.partie1.apres.app                     -&gt; tn.insat.tp2.partie1.apres.notifications           classes
+   tn.insat.tp2.partie1.apres.app                     -&gt; tn.insat.tp2.partie1.apres.orders                  classes
+   tn.insat.tp2.partie1.apres.app                     -&gt; tn.insat.tp2.partie1.apres.persistence             classes
+   tn.insat.tp2.partie1.apres.billing                 -&gt; tn.insat.tp2.partie1.apres.orders                  classes
+   tn.insat.tp2.partie1.apres.notifications           -&gt; tn.insat.tp2.partie1.apres.orders                  classes
+   tn.insat.tp2.partie1.apres.persistence             -&gt; tn.insat.tp2.partie1.apres.orders                  classes</code></pre></div>
+<figure class="diagram"><pre class="mermaid">flowchart TB
+    app["app&lt;br/&gt;Main : assemblage"]
+    billing["billing&lt;br/&gt;remise, paiements, abonnements"]
+    notifications["notifications&lt;br/&gt;e-mail, SMS, push"]
+    persistence["persistence&lt;br/&gt;MySQL"]
+    orders["orders : cœur métier&lt;br/&gt;OrderProcessor, Order, Item, CustomerType&lt;br/&gt;+ 4 interfaces"]
+    app --&gt; billing
+    app --&gt; notifications
+    app --&gt; persistence
+    app --&gt; orders
+    billing --&gt; orders
+    notifications --&gt; orders
+    persistence --&gt; orders</pre><figcaption>Dépendances entre packages mesurées par jdeps : <code>billing</code>, <code>notifications</code> et <code>persistence</code> dépendent de <code>orders</code>, qui ne dépend de rien ; seul <code>app</code> les connaît tous</figcaption></figure>
+    </section>
+
+    <!-- ============================== 1.3 ============================== -->
+    <section>
+      <h2 id="q13"><span class="part">Partie 1 · SOLID</span>1.3 LSP et ISP</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie1/apres/billing" target="_top"><code>partie1/apres/billing/</code></a></p>
+
+      <h3><span class="num">1</span><span>LSP : <code>CashPayment</code> respecte-t-elle le contrat de <code>PaymentMethod</code> ?</span></h3>
+      <p><strong>Non.</strong> <code>PaymentMethod</code> promet que <code>recurringCharge(amount)</code> prélève le montant. <code>CashPayment</code> lève une exception pour n'importe quel montant : elle ne peut donc pas remplacer un <code>PaymentMethod</code> partout où on en attend un. C'est exactement ce qu'interdit LSP : un sous-type ne doit pas casser ce que le client attend du type de base.</p>
+      <p><strong>Code client qui échoue à l'exécution :</strong> tout code qui appelle <code>recurringCharge()</code> sur un <code>PaymentMethod</code> sans connaître sa classe. C'est le cas du module d'abonnements :</p>
+<div class="code"><pre><code class="language-java">/**
+ * Code client existant (module abonnements) : prélève chaque mois tous les abonnés.
+ * Il est écrit pour l'interface PaymentMethod : il fait confiance à son contrat.
+ */
+public class SubscriptionBilling {
+
+    public void chargeAll(List&lt;PaymentMethod&gt; subscribers, double monthlyFee) {
+        for (PaymentMethod method : subscribers) {
+            method.recurringCharge(monthlyFee);
+        }
+    }
+}</code></pre></div>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (extrait de partie1.avant.Main)</span></div><pre><code class="nohighlight">=== Problème 3 : prélèvement mensuel des abonnés (CB, espèces, CB) ===
+Prélèvement mensuel CB : 9.9
+Erreur : java.lang.UnsupportedOperationException
+-&gt; la boucle s'arrête sur CashPayment : le 3e abonné n'est jamais prélevé.</code></pre></div>
+      <p>Le compilateur ne voit rien : l'erreur n'apparaît qu'au moment du prélèvement, en production. Et la seule « réparation » côté client serait un <code>if (!(method instanceof CashPayment))</code>, qui oblige le client à connaître les sous-types (une violation d'OCP en plus).</p>
+
+      <h3><span class="num">2</span><span>ISP : découpe de <code>PaymentMethod</code> par client</span></h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Interface</th><th>Méthodes</th><th>Client</th><th>Implémentée par</th><th>Package</th></tr></thead>
+          <tbody>
+            <tr><td><code>PaymentMethod</code></td><td><code>pay</code>, <code>refund</code></td><td>Le traitement des commandes : <code>OrderProcessor</code> encaisse, une annulation rembourse</td><td>CB, PayPal, espèces, crypto</td><td><code>orders</code></td></tr>
+            <tr><td><code>RecurringPayment</code></td><td><code>recurringCharge</code></td><td>Le module d'abonnements : <code>SubscriptionBilling</code> prélève chaque mois</td><td>CB, PayPal</td><td><code>billing</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Chaque interface est rangée à côté de son client (DIP : l'abstraction appartient à celui qui l'utilise). Une classe implémente les deux si elle sait faire les deux :</p>
+<div class="code"><pre><code class="language-java">/**
+ * Prélèvement d'un abonnement. Son client : SubscriptionBilling.
+ * Seuls les moyens qui savent le faire l'implémentent (CB, PayPal) : plus d'exception « non supporté ».
+ */
+public interface RecurringPayment {
+    void recurringCharge(double amount);
+}
+
+/** Espèces : paiement ponctuel seulement. Elle n'implémente plus de méthode qu'elle ne sait pas faire. */
+public class CashPayment implements PaymentMethod {
+
+    @Override
+    public void pay(double amount) {
+        System.out.println("Espèces : " + amount);
+    }
+
+    @Override
+    public void refund(double amount) {
+        System.out.println("Remboursement en espèces : " + amount);
+    }
+}
+
+/** Carte bancaire : paiement ponctuel et prélèvement d'abonnement. */
+public class CreditCardPayment implements PaymentMethod, RecurringPayment {
+
+    @Override
+    public void pay(double amount) {
+        System.out.println("Débit CB : " + amount);
+    }
+
+    @Override
+    public void refund(double amount) {
+        System.out.println("Remboursement CB : " + amount);
+    }
+
+    @Override
+    public void recurringCharge(double amount) {
+        System.out.println("Prélèvement mensuel CB : " + amount);
+    }
+}
+
+/**
+ * Module abonnements : prélève chaque mois tous les abonnés.
+ * Il ne reçoit que des RecurringPayment : un paiement en espèces ne peut plus lui être passé.
+ */
+public class SubscriptionBilling {
+
+    public void chargeAll(List&lt;RecurringPayment&gt; subscribers, double monthlyFee) {
+        for (RecurringPayment subscriber : subscribers) {
+            subscriber.recurringCharge(monthlyFee);
+        }
+    }
+}</code></pre></div>
+      <p><strong>Le problème 3 devient une erreur de compilation.</strong> Un petit fichier de test, hors du projet, essaie d'inscrire un client « espèces » aux abonnements :</p>
+<div class="code"><pre><code class="language-java">List&lt;RecurringPayment&gt; subscribers = new ArrayList&lt;&gt;();
+subscribers.add(new CreditCardPayment());
+subscribers.add(new CashPayment());
+new SubscriptionBilling().chargeAll(subscribers, 9.9);</code></pre></div>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ javac -encoding UTF-8 -cp TP2/target/classes -d out AbonnementEspeces.java
+AbonnementEspeces.java:13: error: incompatible types: CashPayment cannot be converted to RecurringPayment
+        subscribers.add(new CashPayment());
+                        ^
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+1 error</code></pre></div>
+      <p>L'erreur est détectée par le compilateur, avant toute exécution. Avec des moyens de paiement qui savent prélever, les abonnements fonctionnent (sortie de <code>partie1.apres.app.Main</code>) :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (extrait)</span></div><pre><code class="nohighlight">=== Abonnements : prélèvement mensuel (CB, PayPal) ===
+Prélèvement mensuel CB : 9.9
+Prélèvement mensuel PayPal : 9.9</code></pre></div>
+
+      <h3><span class="num">3</span>Le risque inverse : une interface par méthode</h3>
+      <p>On tomberait dans la <strong>complexité inutile</strong> (sur-ingénierie) : <code>Payable</code>, <code>Refundable</code>, <code>RecurringChargeable</code>… Trois types à nommer, implémenter et injecter pour un seul concept. <code>OrderProcessor</code> recevrait un objet pour payer et un autre pour rembourser, qui pourraient ne pas correspondre au même moyen de paiement (payer par carte, rembourser par PayPal). La notion de « moyen de paiement » disparaîtrait du code (opacité). C'est l'excès inverse de l'interface fourre-tout, et ce que YAGNI déconseille.</p>
+      <p class="callout info"><strong>Notre découpage, en une phrase :</strong> deux interfaces, parce qu'il y a deux clients réels (les commandes et les abonnements) et deux familles de moyens de paiement (ceux qui savent seulement encaisser et rembourser, et ceux qui savent aussi prélever chaque mois) ; <code>pay</code> et <code>refund</code> restent ensemble car tous les moyens les supportent et ils servent le même client.</p>
+    </section>
+
+    <!-- ============================== 1.4 ============================== -->
+    <section>
+      <h2 id="q14"><span class="part">Partie 1 · SOLID</span>1.4 Validation : CRYPTO et PUSH</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg><span>Code : <a href="../tp2#code/src/main/java/tn/insat/tp2/partie1/apres/billing/CryptoPayment.java" target="_top"><code>CryptoPayment.java</code></a> et <a href="../tp2#code/src/main/java/tn/insat/tp2/partie1/apres/notifications/PushNotifier.java" target="_top"><code>PushNotifier.java</code></a></span></p>
+
+      <h3><span class="num">1</span>Deux nouvelles classes</h3>
+      <p><code>CryptoPayment</code> rejoint les autres moyens de paiement dans <code>billing</code>, <code>PushNotifier</code> les autres canaux dans <code>notifications</code> :</p>
+<div class="code"><pre><code class="language-java">/** Ajouté en 1.4 : paiement en cryptomonnaie. Nouvelle classe, OrderProcessor n'est pas modifié (OCP). */
+public class CryptoPayment implements PaymentMethod {
+
+    @Override
+    public void pay(double amount) {
+        System.out.println("Crypto : " + amount);
+    }
+
+    @Override
+    public void refund(double amount) {
+        System.out.println("Remboursement crypto : " + amount);
+    }
+}
+
+/** Ajouté en 1.4 : notification push sur l'application mobile. OrderProcessor n'est pas modifié (OCP). */
+public class PushNotifier implements Notifier {
+
+    @Override
+    public void send(Order order, String message) {
+        System.out.println("Notification push à " + order.getEmail() + " : " + message);
+    }
+}</code></pre></div>
+      <p><code>CryptoPayment</code> n'implémente pas <code>RecurringPayment</code> : aucun besoin de prélèvement crypto aujourd'hui (YAGNI).</p>
+
+      <h3><span class="num">2</span>Branchement dans le point d'assemblage</h3>
+<div class="code"><pre><code class="language-java">// 1.4 : deux nouvelles classes, branchées ici. OrderProcessor n'a pas changé.
+System.out.println();
+System.out.println("=== 1.4 : CMD-004, paiement CRYPTO et notification PUSH ===");
+OrderProcessor cryptoPush = new OrderProcessor(discount, new CryptoPayment(), repository, new PushNotifier());
+System.out.println("Total = " + cryptoPush.process(cmd004));</code></pre></div>
+      <p>Résultat complet de <code>partie1.apres.app.Main</code> : les deux évolutions qui échouaient en 1.1 fonctionnent.</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console</span></div><pre><code class="nohighlight">=== CMD-001 : client VIP, carte bancaire, e-mail ===
+Débit CB : 1125.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-001 enregistrée, total = 1125.0
+E-mail à amira@shopflow.tn : Commande validée
+Total = 1125.0
+=== CMD-002 : client standard, PayPal, SMS ===
+PayPal : 150.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-002 enregistrée, total = 150.0
+SMS au +216 50 333 444 : Commande validée
+Total = 150.0
+=== CMD-003 : client standard, espèces, e-mail ===
+Espèces : 80.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-003 enregistrée, total = 80.0
+E-mail à salma@shopflow.tn : Commande validée
+Total = 80.0
+
+=== 1.4 : CMD-004, paiement CRYPTO et notification PUSH ===
+Crypto : 540.0
+MySQL (jdbc:mysql://localhost/shop) : commande CMD-004 enregistrée, total = 540.0
+Notification push à karim@shopflow.tn : Commande validée
+Total = 540.0
+=== Abonnements : prélèvement mensuel (CB, PayPal) ===
+Prélèvement mensuel CB : 9.9
+Prélèvement mensuel PayPal : 9.9</code></pre></div>
+
+      <h3><span class="num">3</span>Fichiers modifiés et ajoutés</h3>
+      <p>Pour compter sans se tromper, nous avons rejoué l'étape dans un dépôt git temporaire : un commit avec le code de 1.2 et 1.3 (sans les deux classes ni le bloc CMD-004), puis l'ajout de 1.4.</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ git status --short
+M  src/main/java/tn/insat/tp2/partie1/apres/app/Main.java
+A  src/main/java/tn/insat/tp2/partie1/apres/billing/CryptoPayment.java
+A  src/main/java/tn/insat/tp2/partie1/apres/notifications/PushNotifier.java
+
+$ git diff --cached --stat
+ src/main/java/tn/insat/tp2/partie1/apres/app/Main.java                   | 10 ++++++++++
+ src/main/java/tn/insat/tp2/partie1/apres/billing/CryptoPayment.java      | 17 +++++++++++++++++
+ src/main/java/tn/insat/tp2/partie1/apres/notifications/PushNotifier.java | 13 +++++++++++++
+ 3 files changed, 40 insertions(+)
+
+$ echo "lignes de diff dans orders/ : $(git diff --cached -- src/main/java/tn/insat/tp2/partie1/apres/orders | wc -l)"
+lignes de diff dans orders/ : 0</code></pre></div>
+      <p>Pour comparer, le même essai sur le code existant : il faut ajouter un <code>case</code> et un <code>else if</code> dans <code>process()</code>, plus une classe <code>PushGateway</code>.</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal (code existant)</span></div><pre><code class="nohighlight">$ git status --short
+M  src/main/java/tn/insat/tp2/partie1/avant/OrderProcessor.java
+A  src/main/java/tn/insat/tp2/partie1/avant/PushGateway.java
+
+$ git diff --cached -- src/main/java/tn/insat/tp2/partie1/avant/OrderProcessor.java
+@@ -11,6 +11,7 @@ public class OrderProcessor {
+             case "CREDIT_CARD": System.out.println("Débit CB : " + total); break;
+             case "PAYPAL":      System.out.println("PayPal : " + total);   break;
+             case "CASH":        System.out.println("Espèces : " + total);  break;
++            case "CRYPTO":      System.out.println("Crypto : " + total);   break;
+             default: throw new IllegalArgumentException(paymentType);
+         }
+
+@@ -21,6 +22,8 @@ public class OrderProcessor {
+             new SmtpClient().send(order.getEmail(), "Commande validée");
+         else if (notifType.equals("SMS"))
+             new SmsGateway().send(order.getPhone(), "Commande validée");
++        else if (notifType.equals("PUSH"))
++            new PushGateway().send(order.getEmail(), "Commande validée");
+         return total;
+     }
+ }</code></pre></div>
+      <div class="table">
+        <table>
+          <thead><tr><th></th><th>Fichiers ajoutés</th><th>Fichiers modifiés</th><th><code>OrderProcessor</code> modifié ?</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Après refactoring</strong></td><td><strong>2</strong> : <code>CryptoPayment</code>, <code>PushNotifier</code></td><td><strong>1</strong> : <code>Main</code>, le point d'assemblage (+10 lignes)</td><td class="ok">Non : 0 ligne dans <code>orders/</code></td></tr>
+            <tr><td>Code existant (même essai)</td><td>1 : <code>PushGateway</code></td><td>1 : <code>OrderProcessor</code> (+3 lignes dans <code>process()</code>)</td><td class="bad">Oui</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Bilan :</strong> 2 fichiers ajoutés, 1 modifié, et <code>OrderProcessor</code> intact (OCP respecté). Le nombre de fichiers touchés n'a pas baissé (3 contre 2) : ce qui change, c'est <strong>lequel</strong> est modifié. Avant, on modifie la méthode qui traite toutes les commandes, donc il faut retester CB, PayPal, espèces, e-mail et SMS. Après, on ajoute du code à côté et seul le point d'assemblage change : il est fait pour ça, c'est lui qui choisit les implémentations.</p>
+    </section>
+
+    <!-- ============================== 2.1 ============================== -->
+    <section>
+      <h2 id="q21"><span class="part">Partie 2 · Cohésion et couplage</span>2.1 Métriques des packages</h2>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie2" target="_top"><code>partie2/</code></a></p>
+      <p>Architecture actuelle de ShopFlow (énoncé). Une flèche A → B signifie « A dépend de B ».</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Package</th><th class="n">Nc</th><th class="n">Na</th><th>Dépend de</th></tr></thead>
+          <tbody>
+            <tr><td><code>ui</code></td><td class="n">12</td><td class="n">0</td><td>orders, notifications</td></tr>
+            <tr><td><code>orders</code></td><td class="n">10</td><td class="n">2</td><td>billing, persistence</td></tr>
+            <tr><td><code>billing</code></td><td class="n">8</td><td class="n">1</td><td>orders, persistence</td></tr>
+            <tr><td><code>notifications</code></td><td class="n">6</td><td class="n">0</td><td>orders</td></tr>
+            <tr><td><code>persistence</code> (JDBC)</td><td class="n">9</td><td class="n">0</td><td>(aucun)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="num">1</span>Formules (cours, chapitre 2)</h3>
+      <ul>
+        <li><strong>Ca</strong> (couplage afférent) : qui dépend de ce package. Mesure sa <strong>responsabilité</strong>.</li>
+        <li><strong>Ce</strong> (couplage efférent) : de qui ce package dépend. Mesure sa <strong>dépendance</strong>.</li>
+        <li><strong>I = Ce / (Ca + Ce)</strong> : 0 = totalement stable, 1 = totalement instable.</li>
+        <li><strong>A = Na / Nc</strong> : 0 = totalement concret, 1 = totalement abstrait.</li>
+        <li><strong>D = |A + I − 1|</strong> : distance à la séquence principale (A + I = 1) ; 0 est l'idéal.</li>
+      </ul>
+      <p>Le cours compte Ca et Ce en <strong>classes</strong> ; l'énoncé ne donne que les flèches entre packages, donc <strong>chaque flèche compte pour 1</strong>. Exemple pour <code>orders</code> : <code>ui</code>, <code>billing</code> et <code>notifications</code> dépendent de lui (Ca = 3), il dépend de <code>billing</code> et <code>persistence</code> (Ce = 2), donc I = 2 / 5 = 0,40, A = 2 / 10 = 0,20 et D = |0,20 + 0,40 − 1| = 0,40.</p>
+
+      <h3><span class="num">2</span>Résultats</h3>
+      <div class="table">
+        <table>
+          <thead><tr><th>Package</th><th class="n">Ca</th><th class="n">Ce</th><th class="n">I</th><th class="n">A</th><th class="n">D</th></tr></thead>
+          <tbody>
+            <tr><td><code>ui</code></td><td class="n">0</td><td class="n">2</td><td class="n">2/2 = 1,00</td><td class="n">0/12 = 0,00</td><td class="n">0,00</td></tr>
+            <tr><td><code>orders</code></td><td class="n">3</td><td class="n">2</td><td class="n">2/5 = 0,40</td><td class="n">2/10 = 0,20</td><td class="n">0,40</td></tr>
+            <tr><td><code>billing</code></td><td class="n">1</td><td class="n">2</td><td class="n">2/3 = 0,67</td><td class="n">1/8 = 0,13</td><td class="n">0,21</td></tr>
+            <tr><td><code>notifications</code></td><td class="n">1</td><td class="n">1</td><td class="n">1/2 = 0,50</td><td class="n">0/6 = 0,00</td><td class="n">0,50</td></tr>
+            <tr><td><code>persistence</code></td><td class="n">2</td><td class="n">0</td><td class="n">0/2 = 0,00</td><td class="n">0/9 = 0,00</td><td class="n bad">1,00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>D est calculé avec les valeurs exactes, avant arrondi : pour <code>billing</code>, |1/8 + 2/3 − 1| = 5/24 ≈ 0,21.</p>
+      <p>Pour éviter les erreurs de calcul, le programme <code>partie2.Main</code> calcule ces valeurs à partir du tableau de l'énoncé, et repère aussi les cycles (ADP), les flèches contraires à SDP et la zone de douleur (SAP) :</p>
+<div class="code"><pre><code class="language-java">// Tableau de l'énoncé : package, Nc, Na, dépend de.
+Architecture actuelle = new Architecture("Architecture actuelle (énoncé)")
+        .add("ui", 12, 0, "orders", "notifications")
+        .add("orders", 10, 2, "billing", "persistence")
+        .add("billing", 8, 1, "orders", "persistence")
+        .add("notifications", 6, 0, "orders")
+        .add("persistence", 9, 0);</code></pre></div>
+      <p>La classe <code>Architecture</code> applique les formules du cours (les cycles sont cherchés par un parcours en profondeur du graphe, méthode <code>cycles()</code>) :</p>
+<div class="code"><pre><code class="language-java">/** Ca (couplage afférent) : nombre de packages qui dépendent de pkg. */
+public int ca(String pkg) {
+    int count = 0;
+    for (String other : packages()) {
+        if (!other.equals(pkg) &amp;&amp; dependsOn(other).contains(pkg)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/** Ce (couplage efférent) : nombre de packages dont pkg dépend. */
+public int ce(String pkg) {
+    return dependsOn(pkg).size();
+}
+
+/** I = Ce / (Ca + Ce) : 0 = totalement stable, 1 = totalement instable. */
+public double instability(String pkg) {
+    int ca = ca(pkg);
+    int ce = ce(pkg);
+    return ca + ce == 0 ? 0 : (double) ce / (ca + ce);
+}
+
+/** A = Na / Nc : 0 = totalement concret, 1 = totalement abstrait. */
+public double abstractness(String pkg) {
+    return (double) na(pkg) / nc(pkg);
+}
+
+/** D = |A + I - 1| : distance à la séquence principale (0 = idéal). */
+public double distance(String pkg) {
+    return Math.abs(abstractness(pkg) + instability(pkg) - 1);
+}
+
+/** SDP : une flèche a → b est contraire au principe si b est moins stable que a. */
+public boolean violatesSdp(String from, String to) {
+    return instability(to) &gt; instability(from) + 1e-9;
+}</code></pre></div>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (partie2.Main, première partie)</span></div><pre><code class="nohighlight">=== Architecture actuelle (énoncé) ===
+Package        Nc  Na  Ca  Ce  I = Ce/(Ca+Ce) A = Na/Nc    D     Position
+ui             12   0   0   2  2/2 = 1,00     0/12 = 0,00  0,00  séquence principale
+orders         10   2   3   2  2/5 = 0,40     2/10 = 0,20  0,40  côté douleur
+billing         8   1   1   2  2/3 = 0,67     1/8 = 0,13   0,21  côté douleur
+notifications   6   0   1   1  1/2 = 0,50     0/6 = 0,00   0,50  côté douleur
+persistence     9   0   2   0  0/2 = 0,00     0/9 = 0,00   1,00  zone de douleur
+D moyen = 0,42
+Flèches (SDP : la cible doit être plus stable, donc I plus petit) :
+  ui (1,00) → orders (0,40)              ok
+  ui (1,00) → notifications (0,50)       ok
+  orders (0,40) → billing (0,67)         VIOLATION SDP
+  orders (0,40) → persistence (0,00)     ok
+  billing (0,67) → orders (0,40)         ok
+  billing (0,67) → persistence (0,00)    ok
+  notifications (0,50) → orders (0,40)   ok
+ADP, cycles : orders → billing → orders
+SDP, flèches vers un package moins stable : 1
+SAP, zone de douleur (I = 0 et A = 0) : persistence</code></pre></div>
+      <p>« Côté douleur » signifie A + I &lt; 1 : le package est plus stable ou plus concret que ce que recommande la séquence principale, sans être tout au fond de la zone de douleur.</p>
+    </section>
+
+    <!-- ============================== 2.2 ============================== -->
+    <section>
+      <h2 id="q22"><span class="part">Partie 2 · Cohésion et couplage</span>2.2 Couplage : ADP, SDP, SAP</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TB
+    ui["ui&lt;br/&gt;I = 1,00 · A = 0,00"]
+    notifications["notifications&lt;br/&gt;I = 0,50 · A = 0,00"]
+    orders["orders&lt;br/&gt;I = 0,40 · A = 0,20"]
+    billing["billing&lt;br/&gt;I = 0,67 · A = 0,13"]
+    persistence["persistence (JDBC)&lt;br/&gt;I = 0,00 · A = 0,00&lt;br/&gt;zone de douleur"]
+    ui --&gt; orders
+    ui --&gt; notifications
+    notifications --&gt; orders
+    orders --&gt;|"cycle, contraire à SDP"| billing
+    billing --&gt;|cycle| orders
+    orders --&gt; persistence
+    billing --&gt; persistence
+    linkStyle 3,4 stroke:#e5484d,stroke-width:2.5px</pre><figcaption>Architecture actuelle annotée avec les métriques de 2.1 (en rouge : le cycle)</figcaption></figure>
+
+      <h3><span class="num">1</span>ADP : le cycle</h3>
+      <p><strong>Cycle : orders → billing → orders.</strong> <code>orders</code> dépend de <code>billing</code>, qui dépend de <code>orders</code>.</p>
+      <p><strong>Conséquence en équipe (« syndrome du lendemain matin ») :</strong> l'équipe <code>billing</code> modifie une classe le soir ; le lendemain matin, <code>orders</code> ne compile plus ou ses tests échouent, alors que personne n'y a touché. Avec le cycle, les deux packages forment en fait un seul gros bloc : impossible de les livrer, de les versionner ou de les tester séparément, et chaque changement de l'un oblige à recompiler, retester et redéployer l'autre. <code>ui</code>, qui dépend de <code>orders</code>, hérite de tout le bloc.</p>
+      <p><strong>Deux corrections possibles :</strong></p>
+      <ol>
+        <li><strong>Inverser la dépendance (DIP)</strong> : <code>orders</code> définit l'interface dont il a besoin, par exemple <code>PaymentMethod</code>, et <code>billing</code> l'implémente. La flèche <code>orders → billing</code> disparaît : il ne reste que <code>billing → orders</code>.</li>
+        <li><strong>Nouveau package</strong> : extraire les classes partagées qui créent le cycle (par exemple les données de commande que <code>billing</code> lit) dans un package commun, dont <code>orders</code> et <code>billing</code> dépendent tous les deux.</li>
+      </ol>
+      <p><strong>Choix : DIP.</strong> Pas de package de plus à maintenir et à versionner (YAGNI), c'est déjà ce que fait la partie 1 (<code>PaymentMethod</code> est dans <code>orders</code>, <code>billing</code> l'implémente), et cela supprime en même temps la flèche contraire à SDP (question suivante). Avec la solution 2, la flèche <code>orders → billing</code> resterait.</p>
+
+      <h3><span class="num">2</span>SDP : dépendances vers un package moins stable</h3>
+      <p>Une flèche respecte SDP si elle va vers un package <strong>plus stable</strong>, donc de I plus petit.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Dépendance</th><th class="n">I appelant</th><th class="n">I cible</th><th>SDP</th></tr></thead>
+          <tbody>
+            <tr><td>ui → orders</td><td class="n">1,00</td><td class="n">0,40</td><td class="ok">respecté</td></tr>
+            <tr><td>ui → notifications</td><td class="n">1,00</td><td class="n">0,50</td><td class="ok">respecté</td></tr>
+            <tr><td><strong>orders → billing</strong></td><td class="n">0,40</td><td class="n">0,67</td><td class="bad">violé</td></tr>
+            <tr><td>orders → persistence</td><td class="n">0,40</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>billing → orders</td><td class="n">0,67</td><td class="n">0,40</td><td class="ok">respecté</td></tr>
+            <tr><td>billing → persistence</td><td class="n">0,67</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>notifications → orders</td><td class="n">0,50</td><td class="n">0,40</td><td class="ok">respecté</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Une seule dépendance pointe vers un package moins stable : <code>orders</code> (0,40) → <code>billing</code> (0,67).</strong> <code>orders</code> a trois packages qui dépendent de lui, mais il s'appuie sur <code>billing</code>, plus volatil : chaque changement de <code>billing</code> risque de casser <code>orders</code>, et par lui <code>ui</code>, <code>billing</code> et <code>notifications</code>. C'est la même flèche que celle du cycle.</p>
+      <p>Les autres flèches respectent SDP, même si certaines restent des problèmes de conception : <code>orders → persistence</code> va bien vers plus stable, mais vers un package concret (question suivante).</p>
+
+      <h3><span class="num">3</span>SAP : le package en zone de douleur</h3>
+      <p><strong><code>persistence</code></strong> : I = 0 (deux packages en dépendent, il ne dépend de rien) et A = 0 (9 classes JDBC concrètes, aucune interface), donc D = 1 : il est tout au fond de la <strong>zone de douleur</strong> (appelée zone de rigidité dans le cours).</p>
+      <p><strong>Pourquoi c'est un problème pour ShopFlow :</strong></p>
+      <ul>
+        <li><code>persistence</code> est stable « de force » : <code>orders</code> et <code>billing</code> utilisent directement ses classes JDBC. Pourtant il contient les détails les plus changeants : SQL, schéma des tables, pilote de base de données.</li>
+        <li>Chaque modification de schéma ou de technologie (MySQL vers PostgreSQL, ajout d'un cache) se propage à <code>orders</code> et <code>billing</code>, donc au cœur métier, puis à <code>ui</code>. C'est exactement le « chaque évolution coûte de plus en plus cher » du contexte.</li>
+        <li>Impossible de tester <code>orders</code> ou <code>billing</code> sans une vraie base de données.</li>
+      </ul>
+      <p><strong>Correction (SAP + DIP) :</strong> les interfaces de stockage passent dans les packages qui en ont besoin (<code>OrderRepository</code> dans <code>orders</code>, <code>InvoiceRepository</code> dans <code>billing</code>), et <code>persistence</code> les implémente. Il devient alors instable et concret (I = 1, A = 0) : un détail remplaçable, sur la séquence principale.</p>
+      <p><code>orders</code> (D = 0,40) et <code>notifications</code> (D = 0,50) sont aussi du côté douleur, mais beaucoup moins loin.</p>
+
+      <h3><span class="num">4</span>Graphe corrigé</h3>
+      <p>Trois flèches changent, toutes par DIP :</p>
+      <ul>
+        <li><code>orders → billing</code> disparaît : <code>orders</code> possède <code>PaymentMethod</code>, que <code>billing</code> implémente (<code>billing → orders</code> existait déjà) ;</li>
+        <li><code>orders → persistence</code> s'inverse : <code>orders</code> possède <code>OrderRepository</code>, <code>persistence</code> l'implémente ;</li>
+        <li><code>billing → persistence</code> s'inverse : <code>billing</code> possède <code>InvoiceRepository</code>, <code>persistence</code> l'implémente.</li>
+      </ul>
+      <p>Les interfaces ajoutées changent Nc et Na : <code>orders</code> passe à 12 classes dont 4 abstraites, <code>billing</code> à 9 classes dont 2 abstraites.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TB
+    ui["ui&lt;br/&gt;I = 1,00"]
+    persistence["persistence (JDBC)&lt;br/&gt;I = 1,00"]
+    notifications["notifications&lt;br/&gt;I = 0,50"]
+    billing["billing&lt;br/&gt;I = 0,50&lt;br/&gt;possède InvoiceRepository"]
+    orders["orders : cœur métier&lt;br/&gt;I = 0,00&lt;br/&gt;possède PaymentMethod&lt;br/&gt;et OrderRepository"]
+    ui --&gt; orders
+    ui --&gt; notifications
+    notifications --&gt; orders
+    billing --&gt;|"implémente PaymentMethod"| orders
+    persistence --&gt;|"implémente OrderRepository"| orders
+    persistence --&gt;|"implémente InvoiceRepository"| billing</pre><figcaption>Graphe corrigé : sans cycle, toutes les flèches descendent vers un I plus petit (1,00 → 0,50 → 0,00)</figcaption></figure>
+<div class="code"><pre><code class="language-java">// Graphe corrigé (2.2.4), DIP appliqué aux flèches qui posent problème :
+//  - orders possède PaymentMethod, implémentée par billing      -&gt; le cycle orders &lt;-&gt; billing disparaît ;
+//  - orders possède OrderRepository et billing InvoiceRepository,
+//    implémentées par persistence                              -&gt; persistence quitte la zone de douleur.
+// orders : 10 + 2 interfaces = 12 classes dont 4 abstraites ; billing : 8 + 1 = 9 dont 2 abstraites.
+Architecture corrigee = new Architecture("Architecture corrigée (2.2.4)")
+        .add("ui", 12, 0, "orders", "notifications")
+        .add("orders", 12, 4)
+        .add("billing", 9, 2, "orders")
+        .add("notifications", 6, 0, "orders")
+        .add("persistence", 9, 0, "orders", "billing");</code></pre></div>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (partie2.Main, suite)</span></div><pre><code class="nohighlight">=== Architecture corrigée (2.2.4) ===
+Package        Nc  Na  Ca  Ce  I = Ce/(Ca+Ce) A = Na/Nc    D     Position
+ui             12   0   0   2  2/2 = 1,00     0/12 = 0,00  0,00  séquence principale
+orders         12   4   4   0  0/4 = 0,00     4/12 = 0,33  0,67  côté douleur
+billing         9   2   1   1  1/2 = 0,50     2/9 = 0,22   0,28  côté douleur
+notifications   6   0   1   1  1/2 = 0,50     0/6 = 0,00   0,50  côté douleur
+persistence     9   0   0   2  2/2 = 1,00     0/9 = 0,00   0,00  séquence principale
+D moyen = 0,29
+Flèches (SDP : la cible doit être plus stable, donc I plus petit) :
+  ui (1,00) → orders (0,00)              ok
+  ui (1,00) → notifications (0,50)       ok
+  billing (0,50) → orders (0,00)         ok
+  notifications (0,50) → orders (0,00)   ok
+  persistence (1,00) → orders (0,00)     ok
+  persistence (1,00) → billing (0,50)    ok
+ADP, cycles : aucun
+SDP, flèches vers un package moins stable : 0
+SAP, zone de douleur (I = 0 et A = 0) : aucun package
+
+=== Contrôle : graphe corrigé + point d'assemblage app ===
+ADP, cycles : aucun
+SDP, flèches vers un package moins stable : 0</code></pre></div>
+      <ul>
+        <li><strong>ADP</strong> : plus aucun cycle. <strong>SDP</strong> : 0 flèche vers un package moins stable. <strong>SAP</strong> : <code>persistence</code> passe de D = 1,00 à 0,00. Le D moyen passe de 0,42 à 0,29.</li>
+        <li><strong>Qui fait les <code>new</code> ?</strong> Le point d'assemblage (comme <code>app.Main</code> en partie 1), qui n'est pas un des cinq packages de l'énoncé. Le programme l'ajoute comme 6e package pour contrôle (dernières lignes) : rien ne dépend de lui, il ne peut donc pas créer de cycle, et SDP reste respecté.</li>
+        <li><strong>Limites :</strong> <code>orders</code> a D = 0,67. Il est maintenant le package le plus stable (I = 0) mais n'est abstrait qu'à un tiers. C'est acceptable : ses classes concrètes sont des règles et des entités métier (<code>Order</code>, <code>OrderProcessor</code>…) qui ne changent que pour des raisons métier, plus pour des raisons techniques. Pour aller plus loin, on pourrait isoler ses interfaces dans un package d'API séparé, mais sans besoin réel ce serait de la complexité inutile. <code>notifications</code> (D = 0,50) reste utilisé directement par <code>ui</code>.</li>
+      </ul>
+
+      <figure class="diagram">
+        <div class="plots">
+          <svg class="chart" viewBox="0 0 330 340" role="img" aria-labelledby="plot-avant">
+            <title id="plot-avant">Avant : position des packages dans le plan instabilité / abstraction</title>
+            <text class="title" x="50" y="20">Avant (énoncé)</text>
+            <path class="pain" d="M50,290 L50,210 A80,80 0 0 1 130,290 Z"/>
+            <path class="useless" d="M300,40 L220,40 A80,80 0 0 0 300,120 Z"/>
+            <text class="muted" x="56" y="234">zone de</text>
+            <text class="muted" x="56" y="246">douleur</text>
+            <text class="muted" x="296" y="56" text-anchor="end">zone</text>
+            <text class="muted" x="296" y="68" text-anchor="end">d'inutilité</text>
+            <path class="axis" d="M50,40 V290 H300"/>
+            <line class="seq" x1="50" y1="40" x2="300" y2="290"/>
+            <text class="muted" transform="translate(156 134) rotate(45)">séquence principale</text>
+            <text class="muted" x="50" y="306" text-anchor="middle">0</text>
+            <text class="muted" x="175" y="306" text-anchor="middle">0,5</text>
+            <text class="muted" x="300" y="306" text-anchor="middle">1</text>
+            <text class="muted" x="42" y="294" text-anchor="end">0</text>
+            <text class="muted" x="42" y="169" text-anchor="end">0,5</text>
+            <text class="muted" x="42" y="44" text-anchor="end">1</text>
+            <text x="175" y="328" text-anchor="middle">I (instabilité)</text>
+            <text transform="translate(16 165) rotate(-90)" text-anchor="middle">A (abstraction)</text>
+            <circle class="pt" cx="300" cy="290" r="5"/><text x="293" y="280" text-anchor="end">ui</text>
+            <circle class="pt" cx="150" cy="240" r="5"/><text x="157" y="236">orders</text>
+            <circle class="pt" cx="216.7" cy="258.8" r="5"/><text x="224" y="256">billing</text>
+            <circle class="pt" cx="175" cy="290" r="5"/><text x="175" y="280" text-anchor="middle">notifications</text>
+            <circle class="pt bad" cx="50" cy="290" r="6"/><text x="58" y="282">persistence</text>
+          </svg>
+          <svg class="chart" viewBox="0 0 330 340" role="img" aria-labelledby="plot-apres">
+            <title id="plot-apres">Après : position des packages dans le plan instabilité / abstraction</title>
+            <text class="title" x="50" y="20">Après (graphe corrigé)</text>
+            <path class="pain" d="M50,290 L50,210 A80,80 0 0 1 130,290 Z"/>
+            <path class="useless" d="M300,40 L220,40 A80,80 0 0 0 300,120 Z"/>
+            <text class="muted" x="56" y="234">zone de</text>
+            <text class="muted" x="56" y="246">douleur</text>
+            <text class="muted" x="296" y="56" text-anchor="end">zone</text>
+            <text class="muted" x="296" y="68" text-anchor="end">d'inutilité</text>
+            <path class="axis" d="M50,40 V290 H300"/>
+            <line class="seq" x1="50" y1="40" x2="300" y2="290"/>
+            <text class="muted" transform="translate(156 134) rotate(45)">séquence principale</text>
+            <text class="muted" x="50" y="306" text-anchor="middle">0</text>
+            <text class="muted" x="175" y="306" text-anchor="middle">0,5</text>
+            <text class="muted" x="300" y="306" text-anchor="middle">1</text>
+            <text class="muted" x="42" y="294" text-anchor="end">0</text>
+            <text class="muted" x="42" y="169" text-anchor="end">0,5</text>
+            <text class="muted" x="42" y="44" text-anchor="end">1</text>
+            <text x="175" y="328" text-anchor="middle">I (instabilité)</text>
+            <text transform="translate(16 165) rotate(-90)" text-anchor="middle">A (abstraction)</text>
+            <circle class="pt" cx="300" cy="290" r="5"/><text x="296" y="268" text-anchor="end">ui, persistence</text>
+            <circle class="pt" cx="50" cy="206.7" r="5"/><text x="57" y="203">orders</text>
+            <circle class="pt" cx="175" cy="234.4" r="5"/><text x="182" y="231">billing</text>
+            <circle class="pt" cx="175" cy="290" r="5"/><text x="175" y="280" text-anchor="middle">notifications</text>
+          </svg>
+        </div>
+        <figcaption>Les packages dans le plan (I, A), avant et après correction. <code>persistence</code> quitte la zone de douleur ; <code>orders</code> devient le noyau stable (I = 0) et plus abstrait.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================== 2.3 ============================== -->
+    <section>
+      <h2 id="q23"><span class="part">Partie 2 · Cohésion et couplage</span>2.3 Cohésion : REP, CCP, CRP</h2>
+      <div class="table">
+        <table>
+          <thead><tr><th>Scénario</th><th>Principe</th><th>Coût actuel</th><th>Réorganisation</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>A.</strong> Une loi fiscale impose de modifier <code>TaxCalculator</code> (billing), <code>InvoicePrinter</code> (ui) et <code>AccountingExport</code> (exports).</td>
+              <td><strong>CCP</strong> : les classes qui changent ensemble vont ensemble (le SRP des packages).</td>
+              <td>Une seule raison de changer, la loi, touche 3 packages : 3 modifications, 3 séries de tests, 3 livraisons à coordonner, souvent entre 3 équipes. En oublier un donne des factures fausses.</td>
+              <td>Regrouper les trois classes dans un package <code>fiscalite</code>, utilisé par <code>billing</code>, <code>ui</code> et <code>exports</code>. La prochaine loi ne touchera que lui.</td>
+            </tr>
+            <tr>
+              <td><strong>B.</strong> La « Calculatrice Mobile » importe <code>core</code> seulement pour <code>MoneyUtils</code>, alors que <code>core</code> embarque aussi les drivers SQL.</td>
+              <td><strong>CRP</strong> : réutiliser une classe, c'est réutiliser tout son package (l'ISP des packages).</td>
+              <td>Pour une seule classe, la calculatrice embarque les drivers SQL : application plus lourde, compilation plus longue, et une nouvelle version de <code>core</code> à intégrer à chaque changement de la partie base de données, qui ne la concerne pas.</td>
+              <td>Découper <code>core</code> en un petit package <code>money</code> (calculs purs, sans dépendance) et un package <code>database</code> (drivers SQL). La calculatrice ne dépend que de <code>money</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>C.</strong> <code>orders</code> est utilisé par l'équipe mobile sans numéro de version. Vous changez le calcul de la remise.</td>
+              <td><strong>REP</strong> : ce qu'on réutilise doit être livré comme une version numérotée.</td>
+              <td>L'équipe mobile reçoit le nouveau calcul sans l'avoir demandé ni testé : les prix changent dans l'application du jour au lendemain. Elle ne peut ni rester sur l'ancien comportement, ni savoir quelle version elle utilise.</td>
+              <td>Publier <code>orders</code> comme un artefact versionné (SemVer) avec un journal des changements. Le nouveau calcul sort dans une version majeure (<code>2.0.0</code>, car le comportement change) ; l'équipe mobile reste en <code>1.x</code> le temps de migrer, et on maintient la <code>1.x</code> pendant cette période.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================== SYNTHÈSE ============================== -->
+    <section>
+      <h2 id="synthese"><span class="part">Partie 2 · Synthèse</span>Question de synthèse</h2>
+      <h3><span class="num">1</span>Au stade MVP : favoriser CCP</h3>
+      <p>Au début, le métier change sans arrêt et personne d'autre ne réutilise le code. On regroupe donc en <strong>peu de gros packages</strong> les classes qui changent ensemble : chaque évolution touche un seul package et les refactorings restent rapides. Créer vingt micro-packages versionnés dès le premier mois coûterait cher en coordination pour une réutilisation qui n'existe pas encore (complexité inutile).</p>
+
+      <h3><span class="num">2</span>À maturité : refactoriser vers REP et CRP</h3>
+      <p>Quand le projet se stabilise et que d'autres équipes réutilisent ses modules (l'équipe mobile du scénario C, la calculatrice du scénario B), on découpe les packages selon leurs <strong>utilisateurs</strong> (CRP) et on les livre en <strong>versions numérotées</strong> (REP), jusqu'à des services autonomes si besoin.</p>
+
+      <h3><span class="num">3</span>La tension entre les trois principes</h3>
+      <p>REP et CCP poussent à <strong>regrouper</strong> (des packages plus gros), CRP pousse à <strong>séparer</strong> (des packages plus petits). On ne peut pas satisfaire les trois à la fois : en privilégier deux, c'est payer le prix du troisième. La bonne position dans ce triangle change avec la maturité du projet.</p>
+      <figure class="diagram">
+        <svg class="chart triangle" viewBox="0 0 640 320" role="img" aria-labelledby="tri-title">
+          <title id="tri-title">Triangle de tension entre REP, CCP et CRP</title>
+          <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 Z"/></marker></defs>
+          <path class="side" d="M320,60 L140,260 L500,260 Z"/>
+          <circle class="pt" cx="320" cy="60" r="6"/>
+          <circle class="pt" cx="140" cy="260" r="6"/>
+          <circle class="pt" cx="500" cy="260" r="6"/>
+          <text class="title" x="320" y="24" text-anchor="middle">REP</text>
+          <text class="muted" x="320" y="40" text-anchor="middle">livrer en versions ce qui est réutilisé</text>
+          <text class="title" x="140" y="286" text-anchor="middle">CCP</text>
+          <text class="muted" x="140" y="302" text-anchor="middle">grouper ce qui change ensemble</text>
+          <text class="title" x="500" y="286" text-anchor="middle">CRP</text>
+          <text class="muted" x="500" y="302" text-anchor="middle">séparer ce qui n'est pas utilisé ensemble</text>
+          <text x="212" y="146" text-anchor="end">trop de livraisons inutiles</text>
+          <text class="muted" x="212" y="161" text-anchor="end">(CRP sacrifié)</text>
+          <text x="428" y="146">trop de packages touchés</text>
+          <text class="muted" x="428" y="161">par chaque évolution (CCP sacrifié)</text>
+          <text x="320" y="282" text-anchor="middle">difficile à réutiliser</text>
+          <text class="muted" x="320" y="297" text-anchor="middle">(REP sacrifié)</text>
+          <path class="move" d="M206,232 Q300,226 384,178" marker-end="url(#arrow)"/>
+          <circle class="pt bad" cx="198" cy="236" r="5"/>
+          <text x="196" y="222" text-anchor="middle">MVP</text>
+          <circle class="pt bad" cx="392" cy="172" r="5"/>
+          <text x="384" y="160" text-anchor="end">maturité</text>
+        </svg>
+        <figcaption>Chaque côté du triangle indique ce que l'on paie en sacrifiant le principe opposé. Un MVP se place près de CCP ; à maturité, on glisse vers REP et CRP.</figcaption>
+      </figure>
+      <p>ShopFlow, à deux ans, est entre les deux. C'est le travail de ce TP : appliquer SOLID et DIP pour isoler et stabiliser le cœur métier, supprimer le cycle, puis versionner <code>orders</code> dès que l'équipe mobile le réutilise.</p>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script>
+  hljs.highlightAll();
+
+  // Copy button on code blocks
+  document.querySelectorAll(".code").forEach(function (block) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copier";
+    btn.onclick = function () {
+      navigator.clipboard.writeText(block.querySelector("code").innerText).then(function () {
+        btn.textContent = "Copié";
+        setTimeout(function () { btn.textContent = "Copier"; }, 1500);
+      });
+    };
+    block.appendChild(btn);
+  });
+
+  // Highlight the current part in the sidebar
+  var links = Array.prototype.slice.call(document.querySelectorAll(".sidebar .toc a"));
+  var parts = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+  function onScroll() {
+    var current = 0;
+    parts.forEach(function (part, i) { if (part.getBoundingClientRect().top < 140) current = i; });
+    links.forEach(function (a, i) { a.classList.toggle("active", i === current); });
+  }
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  // Close the mobile table of contents after choosing a part
+  document.querySelectorAll(".toc-mobile a").forEach(function (a) {
+    a.addEventListener("click", function () { document.querySelector(".toc-mobile").open = false; });
+  });
+
+  // Light / dark mode: toggle button, changes made by the RT5 site (storage event), system changes
+  function refreshTheme() {
+    var wasDark = document.documentElement.classList.contains("dark");
+    applyTheme();
+    if (document.documentElement.classList.contains("dark") !== wasDark) document.dispatchEvent(new Event("themechange"));
+  }
+  document.querySelector(".theme-toggle").addEventListener("click", function () {
+    var next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    refreshTheme();
+  });
+  addEventListener("storage", function (e) { if (e.key === "theme") refreshTheme(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshTheme);
+</script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs";
+
+  const diagrams = [...document.querySelectorAll(".mermaid")];
+  const sources = diagrams.map((el) => el.textContent);
+  let renders = 0;
+
+  // Draws every diagram in the current theme (again after each theme change).
+  async function renderDiagrams(dark = document.documentElement.classList.contains("dark")) {
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });
+    renders++;
+    for (const [i, el] of diagrams.entries()) {
+      try {
+        const { svg } = await mermaid.render(`diagram-${renders}-${i}`, sources[i]);
+        el.innerHTML = svg;
+        el.setAttribute("data-processed", "true");
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  document.addEventListener("themechange", () => renderDiagrams());
+  renderDiagrams();
+
+  // PDF: the browser's "Save as PDF", with light diagrams like the rest of the printed page.
+  // Also called by the RT5 site's PDF button.
+  window.printDoc = async () => {
+    const dark = document.documentElement.classList.contains("dark");
+    if (dark) await renderDiagrams(false);
+    window.print();
+    if (dark) await renderDiagrams(true);
+  };
+  document.querySelector(".print-pdf").addEventListener("click", () => window.printDoc());
+</script>
+</body>
+</html>
