@@ -129,6 +129,22 @@
   svg.chart .side { stroke: var(--accent); stroke-width: 2; fill: var(--accent-soft); }
   svg.chart .move { stroke: var(--muted); stroke-width: 1.5; fill: none; }
   svg.chart .head { fill: var(--muted); }
+  /* UML diagram of the corrected graph (2.2.4) */
+  svg.uml { display: block; width: 100%; min-width: 620px; max-width: 820px; height: auto; margin: 0 auto; }
+  svg.uml text { fill: var(--text); font: 12.5px var(--mono); }
+  svg.uml .pk, svg.uml .lvl { font: 600 13px var(--sans); }
+  svg.uml .st { fill: var(--accent); font: italic 10.5px var(--sans); }
+  svg.uml .lbl, svg.uml .note { fill: var(--muted); font: 11px var(--sans); }
+  svg.uml .note { font-style: italic; }
+  svg.uml .green { fill: var(--ok); }
+  svg.uml .leg { font: 12px var(--sans); }
+  svg.uml .pkg { fill: var(--bg); stroke: var(--muted); stroke-width: 1.2; }
+  svg.uml .cls { fill: var(--soft); stroke: var(--muted); stroke-width: 1; }
+  svg.uml .itf { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+  svg.uml .use { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  svg.uml .impl { stroke: var(--ok); stroke-width: 1.6; stroke-dasharray: 6 4; fill: none; }
+  svg.uml .use-head { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+  svg.uml .impl-head { fill: var(--bg); stroke: var(--ok); stroke-width: 1.5; }
 
   .table { margin: 16px 0 22px; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.5; }
@@ -795,7 +811,6 @@ $ git diff --cached -- src/main/java/tn/insat/tp2/partie1/avant/OrderProcessor.j
     <!-- ============================== 2.1 ============================== -->
     <section>
       <h2 id="q21"><span class="part">Partie 2 · Cohésion et couplage</span>2.1 Métriques des packages</h2>
-      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie2" target="_top"><code>partie2/</code></a></p>
       <p>Architecture actuelle de ShopFlow (énoncé). Une flèche A → B signifie « A dépend de B ».</p>
       <div class="table">
         <table>
@@ -823,82 +838,17 @@ $ git diff --cached -- src/main/java/tn/insat/tp2/partie1/avant/OrderProcessor.j
       <h3><span class="num">2</span>Résultats</h3>
       <div class="table">
         <table>
-          <thead><tr><th>Package</th><th class="n">Ca</th><th class="n">Ce</th><th class="n">I</th><th class="n">A</th><th class="n">D</th></tr></thead>
+          <thead><tr><th>Package</th><th class="n">Ca</th><th class="n">Ce</th><th class="n">I</th><th class="n">A</th><th class="n">D</th><th>Position</th></tr></thead>
           <tbody>
-            <tr><td><code>ui</code></td><td class="n">0</td><td class="n">2</td><td class="n">2/2 = 1,00</td><td class="n">0/12 = 0,00</td><td class="n">0,00</td></tr>
-            <tr><td><code>orders</code></td><td class="n">3</td><td class="n">2</td><td class="n">2/5 = 0,40</td><td class="n">2/10 = 0,20</td><td class="n">0,40</td></tr>
-            <tr><td><code>billing</code></td><td class="n">1</td><td class="n">2</td><td class="n">2/3 = 0,67</td><td class="n">1/8 = 0,13</td><td class="n">0,21</td></tr>
-            <tr><td><code>notifications</code></td><td class="n">1</td><td class="n">1</td><td class="n">1/2 = 0,50</td><td class="n">0/6 = 0,00</td><td class="n">0,50</td></tr>
-            <tr><td><code>persistence</code></td><td class="n">2</td><td class="n">0</td><td class="n">0/2 = 0,00</td><td class="n">0/9 = 0,00</td><td class="n bad">1,00</td></tr>
+            <tr><td><code>ui</code></td><td class="n">0</td><td class="n">2</td><td class="n">2/2 = 1,00</td><td class="n">0/12 = 0,00</td><td class="n">0,00</td><td>séquence principale</td></tr>
+            <tr><td><code>orders</code></td><td class="n">3</td><td class="n">2</td><td class="n">2/5 = 0,40</td><td class="n">2/10 = 0,20</td><td class="n">0,40</td><td>côté douleur</td></tr>
+            <tr><td><code>billing</code></td><td class="n">1</td><td class="n">2</td><td class="n">2/3 = 0,67</td><td class="n">1/8 = 0,13</td><td class="n">0,21</td><td>côté douleur</td></tr>
+            <tr><td><code>notifications</code></td><td class="n">1</td><td class="n">1</td><td class="n">1/2 = 0,50</td><td class="n">0/6 = 0,00</td><td class="n">0,50</td><td>côté douleur</td></tr>
+            <tr><td><code>persistence</code></td><td class="n">2</td><td class="n">0</td><td class="n">0/2 = 0,00</td><td class="n">0/9 = 0,00</td><td class="n bad">1,00</td><td class="bad">zone de douleur</td></tr>
           </tbody>
         </table>
       </div>
-      <p>D est calculé avec les valeurs exactes, avant arrondi : pour <code>billing</code>, |1/8 + 2/3 − 1| = 5/24 ≈ 0,21.</p>
-      <p>Pour éviter les erreurs de calcul, le programme <code>partie2.Main</code> calcule ces valeurs à partir du tableau de l'énoncé, et repère aussi les cycles (ADP), les flèches contraires à SDP et la zone de douleur (SAP) :</p>
-<div class="code"><pre><code class="language-java">// Tableau de l'énoncé : package, Nc, Na, dépend de.
-Architecture actuelle = new Architecture("Architecture actuelle (énoncé)")
-        .add("ui", 12, 0, "orders", "notifications")
-        .add("orders", 10, 2, "billing", "persistence")
-        .add("billing", 8, 1, "orders", "persistence")
-        .add("notifications", 6, 0, "orders")
-        .add("persistence", 9, 0);</code></pre></div>
-      <p>La classe <code>Architecture</code> applique les formules du cours (les cycles sont cherchés par un parcours en profondeur du graphe, méthode <code>cycles()</code>) :</p>
-<div class="code"><pre><code class="language-java">/** Ca (couplage afférent) : nombre de packages qui dépendent de pkg. */
-public int ca(String pkg) {
-    int count = 0;
-    for (String other : packages()) {
-        if (!other.equals(pkg) &amp;&amp; dependsOn(other).contains(pkg)) {
-            count++;
-        }
-    }
-    return count;
-}
-
-/** Ce (couplage efférent) : nombre de packages dont pkg dépend. */
-public int ce(String pkg) {
-    return dependsOn(pkg).size();
-}
-
-/** I = Ce / (Ca + Ce) : 0 = totalement stable, 1 = totalement instable. */
-public double instability(String pkg) {
-    int ca = ca(pkg);
-    int ce = ce(pkg);
-    return ca + ce == 0 ? 0 : (double) ce / (ca + ce);
-}
-
-/** A = Na / Nc : 0 = totalement concret, 1 = totalement abstrait. */
-public double abstractness(String pkg) {
-    return (double) na(pkg) / nc(pkg);
-}
-
-/** D = |A + I - 1| : distance à la séquence principale (0 = idéal). */
-public double distance(String pkg) {
-    return Math.abs(abstractness(pkg) + instability(pkg) - 1);
-}
-
-/** SDP : une flèche a → b est contraire au principe si b est moins stable que a. */
-public boolean violatesSdp(String from, String to) {
-    return instability(to) &gt; instability(from) + 1e-9;
-}</code></pre></div>
-<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (partie2.Main, première partie)</span></div><pre><code class="nohighlight">=== Architecture actuelle (énoncé) ===
-Package        Nc  Na  Ca  Ce  I = Ce/(Ca+Ce) A = Na/Nc    D     Position
-ui             12   0   0   2  2/2 = 1,00     0/12 = 0,00  0,00  séquence principale
-orders         10   2   3   2  2/5 = 0,40     2/10 = 0,20  0,40  côté douleur
-billing         8   1   1   2  2/3 = 0,67     1/8 = 0,13   0,21  côté douleur
-notifications   6   0   1   1  1/2 = 0,50     0/6 = 0,00   0,50  côté douleur
-persistence     9   0   2   0  0/2 = 0,00     0/9 = 0,00   1,00  zone de douleur
-D moyen = 0,42
-Flèches (SDP : la cible doit être plus stable, donc I plus petit) :
-  ui (1,00) → orders (0,40)              ok
-  ui (1,00) → notifications (0,50)       ok
-  orders (0,40) → billing (0,67)         VIOLATION SDP
-  orders (0,40) → persistence (0,00)     ok
-  billing (0,67) → orders (0,40)         ok
-  billing (0,67) → persistence (0,00)    ok
-  notifications (0,50) → orders (0,40)   ok
-ADP, cycles : orders → billing → orders
-SDP, flèches vers un package moins stable : 1
-SAP, zone de douleur (I = 0 et A = 0) : persistence</code></pre></div>
+      <p>D moyen = (0 + 0,40 + 0,21 + 0,50 + 1,00) / 5 ≈ 0,42. D est calculé avec les valeurs exactes, avant arrondi : pour <code>billing</code>, |1/8 + 2/3 − 1| = 5/24 ≈ 0,21.</p>
       <p>« Côté douleur » signifie A + I &lt; 1 : le package est plus stable ou plus concret que ce que recommande la séquence principale, sans être tout au fond de la zone de douleur.</p>
     </section>
 
@@ -961,62 +911,297 @@ SAP, zone de douleur (I = 0 et A = 0) : persistence</code></pre></div>
       <p><code>orders</code> (D = 0,40) et <code>notifications</code> (D = 0,50) sont aussi du côté douleur, mais beaucoup moins loin.</p>
 
       <h3><span class="num">4</span>Graphe corrigé</h3>
+      <p class="source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg><span>Code : dossier <a href="../tp2#code/src/main/java/tn/insat/tp2/partie2" target="_top"><code>partie2/</code></a></span></p>
       <p>Trois flèches changent, toutes par DIP :</p>
       <ul>
         <li><code>orders → billing</code> disparaît : <code>orders</code> possède <code>PaymentMethod</code>, que <code>billing</code> implémente (<code>billing → orders</code> existait déjà) ;</li>
         <li><code>orders → persistence</code> s'inverse : <code>orders</code> possède <code>OrderRepository</code>, <code>persistence</code> l'implémente ;</li>
         <li><code>billing → persistence</code> s'inverse : <code>billing</code> possède <code>InvoiceRepository</code>, <code>persistence</code> l'implémente.</li>
       </ul>
-      <p>Les interfaces ajoutées changent Nc et Na : <code>orders</code> passe à 12 classes dont 4 abstraites, <code>billing</code> à 9 classes dont 2 abstraites.</p>
-<figure class="diagram"><pre class="mermaid">flowchart TB
-    ui["ui&lt;br/&gt;I = 1,00"]
-    persistence["persistence (JDBC)&lt;br/&gt;I = 1,00"]
-    notifications["notifications&lt;br/&gt;I = 0,50"]
-    billing["billing&lt;br/&gt;I = 0,50&lt;br/&gt;possède InvoiceRepository"]
-    orders["orders : cœur métier&lt;br/&gt;I = 0,00&lt;br/&gt;possède PaymentMethod&lt;br/&gt;et OrderRepository"]
-    ui --&gt; orders
-    ui --&gt; notifications
-    notifications --&gt; orders
-    billing --&gt;|"implémente PaymentMethod"| orders
-    persistence --&gt;|"implémente OrderRepository"| orders
-    persistence --&gt;|"implémente InvoiceRepository"| billing</pre><figcaption>Graphe corrigé : sans cycle, toutes les flèches descendent vers un I plus petit (1,00 → 0,50 → 0,00)</figcaption></figure>
-<div class="code"><pre><code class="language-java">// Graphe corrigé (2.2.4), DIP appliqué aux flèches qui posent problème :
-//  - orders possède PaymentMethod, implémentée par billing      -&gt; le cycle orders &lt;-&gt; billing disparaît ;
-//  - orders possède OrderRepository et billing InvoiceRepository,
-//    implémentées par persistence                              -&gt; persistence quitte la zone de douleur.
-// orders : 10 + 2 interfaces = 12 classes dont 4 abstraites ; billing : 8 + 1 = 9 dont 2 abstraites.
-Architecture corrigee = new Architecture("Architecture corrigée (2.2.4)")
-        .add("ui", 12, 0, "orders", "notifications")
-        .add("orders", 12, 4)
-        .add("billing", 9, 2, "orders")
-        .add("notifications", 6, 0, "orders")
-        .add("persistence", 9, 0, "orders", "billing");</code></pre></div>
-<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (partie2.Main, suite)</span></div><pre><code class="nohighlight">=== Architecture corrigée (2.2.4) ===
-Package        Nc  Na  Ca  Ce  I = Ce/(Ca+Ce) A = Na/Nc    D     Position
-ui             12   0   0   2  2/2 = 1,00     0/12 = 0,00  0,00  séquence principale
-orders         12   4   4   0  0/4 = 0,00     4/12 = 0,33  0,67  côté douleur
-billing         9   2   1   1  1/2 = 0,50     2/9 = 0,22   0,28  côté douleur
-notifications   6   0   1   1  1/2 = 0,50     0/6 = 0,00   0,50  côté douleur
-persistence     9   0   0   2  2/2 = 1,00     0/9 = 0,00   0,00  séquence principale
-D moyen = 0,29
-Flèches (SDP : la cible doit être plus stable, donc I plus petit) :
-  ui (1,00) → orders (0,00)              ok
-  ui (1,00) → notifications (0,50)       ok
-  billing (0,50) → orders (0,00)         ok
-  notifications (0,50) → orders (0,00)   ok
-  persistence (1,00) → orders (0,00)     ok
-  persistence (1,00) → billing (0,50)    ok
-ADP, cycles : aucun
-SDP, flèches vers un package moins stable : 0
-SAP, zone de douleur (I = 0 et A = 0) : aucun package
+      <figure class="diagram">
+        <svg class="uml" viewBox="0 0 820 520" role="img" aria-labelledby="uml-title">
+          <title id="uml-title">Diagramme UML du graphe corrigé : les cinq packages, leurs classes et les flèches « utilise » et « implémente »</title>
+          <defs>
+            <marker id="uml-use" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path class="use-head" d="M1,1 L11,6 L1,11"/></marker>
+            <marker id="uml-impl" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path class="impl-head" d="M1,1 L13,7 L1,13 Z"/></marker>
+          </defs>
 
-=== Contrôle : graphe corrigé + point d'assemblage app ===
-ADP, cycles : aucun
-SDP, flèches vers un package moins stable : 0</code></pre></div>
+          <text class="lvl" x="12" y="76">I = 1,00</text>
+          <text class="lbl" x="12" y="92">instable</text>
+          <text class="lvl" x="12" y="232">I = 0,50</text>
+          <text class="lvl" x="12" y="426">I = 0,00</text>
+          <text class="lbl" x="12" y="442">stable</text>
+
+          <rect class="pkg" x="82" y="18" width="40" height="22"/>
+          <rect class="pkg" x="82" y="40" width="290" height="76"/>
+          <text class="pk" x="102" y="34" text-anchor="middle">ui</text>
+          <rect class="cls" x="165" y="62" width="190" height="32" rx="4"/>
+          <text x="260" y="82.5" text-anchor="middle">CheckoutController</text>
+
+          <rect class="pkg" x="392" y="18" width="104" height="22"/>
+          <rect class="pkg" x="392" y="40" width="416" height="76"/>
+          <text class="pk" x="444" y="34" text-anchor="middle">persistence</text>
+          <rect class="cls" x="408" y="62" width="168" height="32" rx="4"/>
+          <text x="492" y="82.5" text-anchor="middle">JdbcOrderRepository</text>
+          <rect class="cls" x="609" y="62" width="182" height="32" rx="4"/>
+          <text x="700" y="82.5" text-anchor="middle">JdbcInvoiceRepository</text>
+
+          <rect class="pkg" x="82" y="168" width="114" height="22"/>
+          <rect class="pkg" x="82" y="190" width="205" height="76"/>
+          <text class="pk" x="139" y="184" text-anchor="middle">notifications</text>
+          <rect class="cls" x="149" y="212" width="122" height="32" rx="4"/>
+          <text x="210" y="232.5" text-anchor="middle">EmailNotifier</text>
+
+          <rect class="pkg" x="566" y="168" width="70" height="22"/>
+          <rect class="pkg" x="566" y="190" width="242" height="126"/>
+          <text class="pk" x="601" y="184" text-anchor="middle">billing</text>
+          <rect class="itf" x="624" y="206" width="152" height="44" rx="4"/>
+          <text class="st" x="700" y="223" text-anchor="middle">«interface»</text>
+          <text x="700" y="241" text-anchor="middle">InvoiceRepository</text>
+          <rect class="cls" x="582" y="268" width="108" height="32" rx="4"/>
+          <text x="636" y="288.5" text-anchor="middle">CardPayment</text>
+          <rect class="cls" x="704" y="268" width="78" height="32" rx="4"/>
+          <text x="743" y="288.5" text-anchor="middle">Invoice</text>
+
+          <rect class="pkg" x="82" y="366" width="70" height="22"/>
+          <rect class="pkg" x="82" y="388" width="726" height="80"/>
+          <text class="pk" x="117" y="382" text-anchor="middle">orders</text>
+          <text class="note" x="94" y="432">cœur métier</text>
+          <rect class="cls" x="170" y="412" width="80" height="32" rx="4"/>
+          <text x="210" y="432.5" text-anchor="middle">Order</text>
+          <rect class="cls" x="273" y="412" width="114" height="32" rx="4"/>
+          <text x="330" y="432.5" text-anchor="middle">OrderService</text>
+          <rect class="itf" x="423" y="406" width="138" height="44" rx="4"/>
+          <text class="st" x="492" y="423" text-anchor="middle">«interface»</text>
+          <text x="492" y="441" text-anchor="middle">OrderRepository</text>
+          <rect class="itf" x="575" y="406" width="122" height="44" rx="4"/>
+          <text class="st" x="636" y="423" text-anchor="middle">«interface»</text>
+          <text x="636" y="441" text-anchor="middle">PaymentMethod</text>
+          <text class="note" x="716" y="424">ne dépend</text>
+          <text class="note" x="716" y="439">de personne</text>
+
+          <line class="use" x1="210" y1="94" x2="210" y2="212" marker-end="url(#uml-use)"/>
+          <line class="use" x1="330" y1="94" x2="330" y2="412" marker-end="url(#uml-use)"/>
+          <line class="use" x1="210" y1="244" x2="210" y2="412" marker-end="url(#uml-use)"/>
+          <line class="impl" x1="492" y1="94" x2="492" y2="406" marker-end="url(#uml-impl)"/>
+          <line class="impl" x1="700" y1="94" x2="700" y2="206" marker-end="url(#uml-impl)"/>
+          <line class="impl" x1="636" y1="300" x2="636" y2="406" marker-end="url(#uml-impl)"/>
+          <text class="lbl" x="217" y="150">utilise</text>
+          <text class="lbl" x="337" y="150">utilise</text>
+          <text class="lbl green" x="499" y="150">implémente</text>
+          <text class="lbl green" x="707" y="150">implémente</text>
+          <text class="lbl" x="217" y="352">utilise</text>
+          <text class="lbl green" x="643" y="352">implémente</text>
+
+          <line class="use" x1="82" y1="500" x2="122" y2="500" marker-end="url(#uml-use)"/>
+          <text class="leg" x="130" y="504">A utilise B</text>
+          <line class="impl" x1="232" y1="500" x2="272" y2="500" marker-end="url(#uml-impl)"/>
+          <text class="leg" x="280" y="504">A implémente l'interface B</text>
+          <rect class="itf" x="470" y="491" width="24" height="18" rx="3"/>
+          <text class="leg" x="502" y="504">interface</text>
+          <rect class="cls" x="582" y="491" width="24" height="18" rx="3"/>
+          <text class="leg" x="614" y="504">classe concrète</text>
+        </svg>
+        <figcaption>Graphe corrigé en UML : un cadre par package, ses classes dedans, une flèche par dépendance entre packages. Plus un package est bas, plus il est stable : toutes les flèches descendent, donc pas de cycle (ADP) et SDP respecté. Les trois flèches vertes viennent du DIP.</figcaption>
+      </figure>
+      <p><strong>Comment lire le schéma.</strong> Une flèche part d'une classe et arrive sur la classe dont elle a besoin : le package de départ dépend donc du package d'arrivée. Exemple : <code>CardPayment</code> (dans <code>billing</code>) implémente <code>PaymentMethod</code> (dans <code>orders</code>), donc <code>billing</code> dépend de <code>orders</code>. L'inverse n'existe plus : <code>OrderService</code> appelle <code>paymentMethod.pay(order)</code> sans savoir qu'il s'agit d'une carte. Les utilisations à l'intérieur d'un même package (par exemple <code>OrderService</code> qui utilise ses deux interfaces) ne sont pas dessinées.</p>
+
+      <p><strong>Le code.</strong> Dans le code, une flèche du schéma correspond à un <code>import</code> d'un autre package. <code>orders</code> n'a aucun import : il contient <code>Order</code>, le service et les deux interfaces dont le service a besoin.</p>
+<div class="code"><pre><code class="language-java">// orders/PaymentMethod.java
+/**
+ * Interface possédée par orders, implémentée par billing (DIP).
+ * orders n'importe plus rien de billing : la flèche orders → billing disparaît, et le cycle avec elle.
+ */
+public interface PaymentMethod {
+    void pay(Order order);
+}
+
+// orders/OrderRepository.java
+/**
+ * Interface possédée par orders, implémentée par persistence (DIP).
+ * La flèche orders → persistence s'inverse : c'est persistence qui dépend de orders.
+ */
+public interface OrderRepository {
+    void save(Order order);
+}
+
+// orders/OrderService.java
+/**
+ * Cœur métier : passer une commande.
+ * Il n'utilise que les interfaces de son propre package : aucun import de billing ni de persistence.
+ */
+public class OrderService {
+
+    private final PaymentMethod paymentMethod;
+    private final OrderRepository orderRepository;
+
+    public OrderService(PaymentMethod paymentMethod, OrderRepository orderRepository) {
+        this.paymentMethod = paymentMethod;
+        this.orderRepository = orderRepository;
+    }
+
+    public void place(Order order) {
+        paymentMethod.pay(order);
+        orderRepository.save(order);
+    }
+}</code></pre></div>
+      <p><code>billing</code> implémente l'interface de <code>orders</code> et possède sa propre interface de stockage, <code>InvoiceRepository</code> (la classe de données <code>Invoice</code> n'est pas recopiée ici) :</p>
+<div class="code"><pre><code class="language-java">// billing/InvoiceRepository.java
+/**
+ * Interface possédée par billing, implémentée par persistence (DIP).
+ * La flèche billing → persistence s'inverse : c'est persistence qui dépend de billing.
+ */
+public interface InvoiceRepository {
+    void save(Invoice invoice);
+}
+
+// billing/CardPayment.java
+import tn.insat.tp2.partie2.orders.Order;
+import tn.insat.tp2.partie2.orders.PaymentMethod;
+
+/** Paiement par carte : implémente l'interface de orders. C'est la seule flèche entre billing et orders. */
+public class CardPayment implements PaymentMethod {
+
+    private final InvoiceRepository invoices;
+
+    public CardPayment(InvoiceRepository invoices) {
+        this.invoices = invoices;
+    }
+
+    @Override
+    public void pay(Order order) {
+        System.out.println("billing : débit carte de " + order.getAmount() + " pour " + order.getId());
+        invoices.save(new Invoice(order.getId(), order.getAmount()));
+    }
+}</code></pre></div>
+      <p><code>persistence</code> implémente les deux interfaces de stockage. Il dépend de <code>orders</code> et de <code>billing</code>, et plus aucun package ne dépend de lui :</p>
+<div class="code"><pre><code class="language-java">// persistence/JdbcOrderRepository.java
+import tn.insat.tp2.partie2.orders.Order;
+import tn.insat.tp2.partie2.orders.OrderRepository;
+
+/** Stockage JDBC des commandes (simulé par un affichage) : implémente l'interface de orders. */
+public class JdbcOrderRepository implements OrderRepository {
+
+    @Override
+    public void save(Order order) {
+        System.out.println("persistence : INSERT INTO orders, commande " + order.getId());
+    }
+}
+
+// persistence/JdbcInvoiceRepository.java
+import tn.insat.tp2.partie2.billing.Invoice;
+import tn.insat.tp2.partie2.billing.InvoiceRepository;
+
+/** Stockage JDBC des factures (simulé par un affichage) : implémente l'interface de billing. */
+public class JdbcInvoiceRepository implements InvoiceRepository {
+
+    @Override
+    public void save(Invoice invoice) {
+        System.out.println("persistence : INSERT INTO invoices, facture de la commande " + invoice.getOrderId());
+    }
+}</code></pre></div>
+      <p><code>ui</code> et <code>notifications</code> gardent les flèches de l'énoncé :</p>
+<div class="code"><pre><code class="language-java">// ui/CheckoutController.java
+import tn.insat.tp2.partie2.notifications.EmailNotifier;
+import tn.insat.tp2.partie2.orders.Order;
+import tn.insat.tp2.partie2.orders.OrderService;
+
+/** Écran de validation de commande : utilise orders et notifications, comme dans le graphe de l'énoncé. */
+public class CheckoutController {
+
+    private final OrderService orderService;
+    private final EmailNotifier notifier;
+
+    public CheckoutController(OrderService orderService, EmailNotifier notifier) {
+        this.orderService = orderService;
+        this.notifier = notifier;
+    }
+
+    public void checkout(Order order) {
+        System.out.println("ui : validation de la commande " + order.getId());
+        orderService.place(order);
+        notifier.orderConfirmed(order);
+    }
+}
+
+// notifications/EmailNotifier.java
+import tn.insat.tp2.partie2.orders.Order;
+
+/** Notification par e-mail (simulée par un affichage). Elle lit une Order : flèche notifications → orders. */
+public class EmailNotifier {
+
+    public void orderConfirmed(Order order) {
+        System.out.println("notifications : e-mail à " + order.getEmail() + ", commande " + order.getId() + " confirmée");
+    }
+}</code></pre></div>
+      <p>Seul le point d'assemblage <code>app</code> connaît les classes concrètes : il fait les <code>new</code> et branche chaque implémentation sur son interface.</p>
+<div class="code"><pre><code class="language-java">// app/Main.java
+/**
+ * Point d'assemblage : le seul endroit qui fait les new et branche chaque implémentation sur son interface.
+ * Il dépend des cinq packages, mais aucun ne dépend de lui : il ne peut pas créer de cycle.
+ */
+public class Main {
+
+    public static void main(String[] args) {
+        InvoiceRepository invoices = new JdbcInvoiceRepository();
+        OrderService orderService = new OrderService(new CardPayment(invoices), new JdbcOrderRepository());
+        CheckoutController checkout = new CheckoutController(orderService, new EmailNotifier());
+
+        checkout.checkout(new Order("CMD-005", "amira@shopflow.tn", 120.0));
+    }
+}</code></pre></div>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Sortie console (partie2.app.Main)</span></div><pre><code class="nohighlight">ui : validation de la commande CMD-005
+billing : débit carte de 120.0 pour CMD-005
+persistence : INSERT INTO invoices, facture de la commande CMD-005
+persistence : INSERT INTO orders, commande CMD-005
+notifications : e-mail à amira@shopflow.tn, commande CMD-005 confirmée</code></pre></div>
+      <p><strong>Vérification avec jdeps</strong>, qui lit les dépendances réelles dans les classes compilées :</p>
+<div class="console"><div class="console-bar"><i></i><i></i><i></i><span>Terminal</span></div><pre><code class="nohighlight">$ jdeps -verbose:package -include 'tn\.insat\.tp2\.partie2\..*' -e 'tn\.insat\.tp2\.partie2\..*' target/classes
+classes -&gt; target\classes
+   tn.insat.tp2.partie2.app                           -&gt; tn.insat.tp2.partie2.billing                       classes
+   tn.insat.tp2.partie2.app                           -&gt; tn.insat.tp2.partie2.notifications                 classes
+   tn.insat.tp2.partie2.app                           -&gt; tn.insat.tp2.partie2.orders                        classes
+   tn.insat.tp2.partie2.app                           -&gt; tn.insat.tp2.partie2.persistence                   classes
+   tn.insat.tp2.partie2.app                           -&gt; tn.insat.tp2.partie2.ui                            classes
+   tn.insat.tp2.partie2.billing                       -&gt; tn.insat.tp2.partie2.orders                        classes
+   tn.insat.tp2.partie2.notifications                 -&gt; tn.insat.tp2.partie2.orders                        classes
+   tn.insat.tp2.partie2.persistence                   -&gt; tn.insat.tp2.partie2.billing                       classes
+   tn.insat.tp2.partie2.persistence                   -&gt; tn.insat.tp2.partie2.orders                        classes
+   tn.insat.tp2.partie2.ui                            -&gt; tn.insat.tp2.partie2.notifications                 classes
+   tn.insat.tp2.partie2.ui                            -&gt; tn.insat.tp2.partie2.orders                        classes</code></pre></div>
+      <p>On retrouve exactement les six flèches du schéma, plus les cinq flèches de <code>app</code>. Aucune ligne ne part de <code>orders</code> : il ne dépend de personne. Aucune flèche n'arrive sur <code>app</code> : il ne peut pas créer de cycle.</p>
+
+      <p><strong>Métriques après correction.</strong> Les interfaces ajoutées changent Nc et Na : <code>orders</code> passe à 12 classes dont 4 abstraites, <code>billing</code> à 9 classes dont 2 abstraites. Le code ci-dessus ne contient que les classes qui portent les flèches ; les métriques gardent les effectifs de l'énoncé et, comme en 2.1, ne comptent pas <code>app</code>.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Package</th><th class="n">Ca</th><th class="n">Ce</th><th class="n">I</th><th class="n">A</th><th class="n">D</th><th>Position</th></tr></thead>
+          <tbody>
+            <tr><td><code>ui</code></td><td class="n">0</td><td class="n">2</td><td class="n">2/2 = 1,00</td><td class="n">0/12 = 0,00</td><td class="n">0,00</td><td>séquence principale</td></tr>
+            <tr><td><code>orders</code></td><td class="n">4</td><td class="n">0</td><td class="n">0/4 = 0,00</td><td class="n">4/12 = 0,33</td><td class="n">0,67</td><td>côté douleur</td></tr>
+            <tr><td><code>billing</code></td><td class="n">1</td><td class="n">1</td><td class="n">1/2 = 0,50</td><td class="n">2/9 = 0,22</td><td class="n">0,28</td><td>côté douleur</td></tr>
+            <tr><td><code>notifications</code></td><td class="n">1</td><td class="n">1</td><td class="n">1/2 = 0,50</td><td class="n">0/6 = 0,00</td><td class="n">0,50</td><td>côté douleur</td></tr>
+            <tr><td><code>persistence</code></td><td class="n">0</td><td class="n">2</td><td class="n">2/2 = 1,00</td><td class="n">0/9 = 0,00</td><td class="n ok">0,00</td><td class="ok">séquence principale</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>D moyen = (0 + 0,67 + 0,28 + 0,50 + 0) / 5 ≈ 0,29, contre 0,42 avant.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Dépendance</th><th class="n">I appelant</th><th class="n">I cible</th><th>SDP</th></tr></thead>
+          <tbody>
+            <tr><td>ui → orders</td><td class="n">1,00</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>ui → notifications</td><td class="n">1,00</td><td class="n">0,50</td><td class="ok">respecté</td></tr>
+            <tr><td>notifications → orders</td><td class="n">0,50</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>billing → orders</td><td class="n">0,50</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>persistence → orders</td><td class="n">1,00</td><td class="n">0,00</td><td class="ok">respecté</td></tr>
+            <tr><td>persistence → billing</td><td class="n">1,00</td><td class="n">0,50</td><td class="ok">respecté</td></tr>
+          </tbody>
+        </table>
+      </div>
       <ul>
-        <li><strong>ADP</strong> : plus aucun cycle. <strong>SDP</strong> : 0 flèche vers un package moins stable. <strong>SAP</strong> : <code>persistence</code> passe de D = 1,00 à 0,00. Le D moyen passe de 0,42 à 0,29.</li>
-        <li><strong>Qui fait les <code>new</code> ?</strong> Le point d'assemblage (comme <code>app.Main</code> en partie 1), qui n'est pas un des cinq packages de l'énoncé. Le programme l'ajoute comme 6e package pour contrôle (dernières lignes) : rien ne dépend de lui, il ne peut donc pas créer de cycle, et SDP reste respecté.</li>
-        <li><strong>Limites :</strong> <code>orders</code> a D = 0,67. Il est maintenant le package le plus stable (I = 0) mais n'est abstrait qu'à un tiers. C'est acceptable : ses classes concrètes sont des règles et des entités métier (<code>Order</code>, <code>OrderProcessor</code>…) qui ne changent que pour des raisons métier, plus pour des raisons techniques. Pour aller plus loin, on pourrait isoler ses interfaces dans un package d'API séparé, mais sans besoin réel ce serait de la complexité inutile. <code>notifications</code> (D = 0,50) reste utilisé directement par <code>ui</code>.</li>
+        <li><strong>ADP</strong> : plus aucun cycle. <strong>SDP</strong> : les six flèches vont vers un package plus stable. <strong>SAP</strong> : <code>persistence</code> passe de D = 1,00 (zone de douleur) à 0,00 (séquence principale). Le D moyen passe de 0,42 à 0,29.</li>
+        <li><strong>Et <code>app</code> ?</strong> Si on le compte comme 6e package : Ca = 0 et Ce = 5, donc I = 1. Les autres I deviennent ui 0,67, orders 0,00, billing 0,33, notifications 0,33 et persistence 0,67 : chaque flèche va encore vers un I plus petit, donc SDP reste respecté et il n'y a toujours aucun cycle.</li>
+        <li><strong>Limites :</strong> <code>orders</code> a D = 0,67. Il est maintenant le package le plus stable (I = 0) mais n'est abstrait qu'à un tiers. C'est acceptable : ses classes concrètes sont des règles et des entités métier (<code>Order</code>, <code>OrderService</code>…) qui ne changent que pour des raisons métier, plus pour des raisons techniques. Pour aller plus loin, on pourrait isoler ses interfaces dans un package d'API séparé, mais sans besoin réel ce serait de la complexité inutile. <code>notifications</code> (D = 0,50) reste utilisé directement par <code>ui</code>.</li>
       </ul>
 
       <figure class="diagram">

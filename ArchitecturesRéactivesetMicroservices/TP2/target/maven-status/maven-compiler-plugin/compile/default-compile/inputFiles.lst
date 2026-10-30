@@ -29,5 +29,15 @@ C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\s
 C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie1\avant\SmsGateway.java
 C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie1\avant\SmtpClient.java
 C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie1\avant\SubscriptionBilling.java
-C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\Architecture.java
-C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\Main.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\app\Main.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\billing\CardPayment.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\billing\Invoice.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\billing\InvoiceRepository.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\notifications\EmailNotifier.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\orders\Order.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\orders\OrderRepository.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\orders\OrderService.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\orders\PaymentMethod.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\persistence\JdbcInvoiceRepository.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\persistence\JdbcOrderRepository.java
+C:\Users\helmi\OneDrive\Desktop\RT5\ArchitecturesRéactivesetMicroservices\TP2\src\main\java\tn\insat\tp2\partie2\ui\CheckoutController.java
