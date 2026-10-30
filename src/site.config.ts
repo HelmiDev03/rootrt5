@@ -6,5 +6,6 @@ export const site = {
   subjectTitles: {
     "ArchitecturesRéactivesetMicroservices": "Architectures Réactives et Microservices",
     devOps: "DevOps",
+    TechnologiesIot: "Technologies IoT",
   } as Record<string, string>,
 };
