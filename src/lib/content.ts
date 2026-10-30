@@ -16,11 +16,21 @@ export type Work = {
   githubUrl: string;
 };
 
+/** Course summaries of a subject (PDF, Word…): the files of its "Summary" folder, listed on the subject page. */
+export type Summary = {
+  folder: string;
+  slug: string;
+  dir: string;
+  /** Relative to the summary folder, with their size in bytes. */
+  files: { path: string; size: number }[];
+};
+
 export type Subject = {
   folder: string;
   slug: string;
   title: string;
   works: Work[];
+  summary: Summary | null;
 };
 
 export const DOC_FILE = "doc.html";
@@ -43,6 +53,11 @@ const SKIPPED_DIRS = new Set(["node_modules", "target", "build", "dist", "out", 
 // "Enonce" or "énoncé" work too.
 function isStatementDir(name: string): boolean {
   return slugify(name) === "enonce";
+}
+
+// A subject's "Summary" folder ("Résumé" or "Résumés" work too) holds course summaries, not a TP.
+function isSummaryDir(name: string): boolean {
+  return /^(summary|summaries|resumes?)$/.test(slugify(name));
 }
 
 function listDirs(dir: string): string[] {
@@ -118,23 +133,44 @@ function readWork(subjectFolder: string, folder: string): Work {
   };
 }
 
-/** Every top-level folder is a subject, and every folder inside a subject is a work (TP1, TP2…). */
+function readSummary(subjectFolder: string, folder: string): Summary {
+  const dir = contentPath(subjectFolder, folder);
+  const files = listWorkFiles(dir)
+    .sort((a, b) => a.localeCompare(b, "fr", { numeric: true }))
+    .map((file) => ({ path: file, size: fs.statSync(path.join(/*turbopackIgnore: true*/ dir, file)).size }));
+  return { folder, slug: slugify(folder), dir, files };
+}
+
+/**
+ * Every top-level folder is a subject, and every folder inside a subject is a work (TP1, TP2…),
+ * except its "Summary" folder.
+ */
 export function getSubjects(): Subject[] {
   return listDirs(contentPath())
     .filter((name) => !APP_DIRS.has(name))
     .map((folder) => {
       const title = site.subjectTitles[folder.normalize("NFC")] ?? titleFromFolder(folder);
+      const dirs = listDirs(contentPath(folder));
+      const summary = dirs.find(isSummaryDir);
       return {
         folder,
         slug: slugify(title),
         title,
-        works: listDirs(contentPath(folder)).map((work) => readWork(folder, work)),
+        works: dirs.filter((dir) => !isSummaryDir(dir)).map((work) => readWork(folder, work)),
+        summary: summary ? readSummary(folder, summary) : null,
       };
     });
 }
 
 export function getSubject(slug: string): Subject | undefined {
   return getSubjects().find((subject) => subject.slug === slug);
+}
+
+/** The folder whose files are served under /<subject>/<slug>/…: a work, or the subject's summary folder. */
+export function getServedFolder(subjectSlug: string, slug: string): string | undefined {
+  const subject = getSubject(subjectSlug);
+  if (subject?.summary?.slug === slug) return subject.summary.dir;
+  return subject?.works.find((work) => work.slug === slug)?.dir;
 }
 
 export function getWork(subjectSlug: string, workSlug: string) {
@@ -164,4 +200,12 @@ function statementFiles(dir: string): string[] {
 
 export function countWorks(n: number): string {
   return n === 0 ? "Aucun TP pour l’instant" : `${n} TP`;
+}
+
+/** "2 TP · 1 résumé" */
+export function subjectStats(subject: Subject): string {
+  const summaries = subject.summary?.files.length ?? 0;
+  const stats = [countWorks(subject.works.length)];
+  if (summaries > 0) stats.push(summaries === 1 ? "1 résumé" : `${summaries} résumés`);
+  return stats.join(" · ");
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronIcon, FolderIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { countWorks, getSubjects } from "@/lib/content";
+import { getSubjects, subjectStats } from "@/lib/content";
 
 export default function HomePage() {
   const subjects = getSubjects();
@@ -35,7 +35,7 @@ export default function HomePage() {
                 <ChevronIcon className="size-5 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500" />
               </div>
               <h2 className="mt-5 text-lg font-semibold leading-snug">{subject.title}</h2>
-              <p className="mt-1 text-sm text-zinc-500">{countWorks(subject.works.length)}</p>
+              <p className="mt-1 text-sm text-zinc-500">{subjectStats(subject)}</p>
               {subject.works.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {subject.works.map((work) => (

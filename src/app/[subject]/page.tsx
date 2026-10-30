@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CodeIcon, DocIcon } from "@/components/icons";
+import { SummaryFile } from "@/components/summary-file";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { countWorks, getSubject, getSubjects } from "@/lib/content";
+import { getSubject, getSubjects, subjectStats } from "@/lib/content";
+import { formatSize, servedFileUrl } from "@/lib/file-label";
 
 export function generateStaticParams() {
   return getSubjects().map((subject) => ({ subject: subject.slug }));
@@ -16,6 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/[subject]">): Pro
 export default async function SubjectPage({ params }: PageProps<"/[subject]">) {
   const subject = getSubject((await params).subject);
   if (!subject) notFound();
+  const { summary } = subject;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-14 sm:py-20">
@@ -26,7 +29,7 @@ export default async function SubjectPage({ params }: PageProps<"/[subject]">) {
         <ThemeToggle />
       </nav>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{subject.title}</h1>
-      <p className="mt-2 text-zinc-500">{countWorks(subject.works.length)}</p>
+      <p className="mt-2 text-zinc-500">{subjectStats(subject)}</p>
 
       <ul className="mt-10 grid gap-4">
         {subject.works.map((work) => {
@@ -64,6 +67,22 @@ export default async function SubjectPage({ params }: PageProps<"/[subject]">) {
           );
         })}
       </ul>
+
+      {summary && summary.files.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-xl font-semibold tracking-tight">Résumés</h2>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {summary.files.map((file) => (
+              <SummaryFile
+                key={file.path}
+                name={file.path}
+                url={servedFileUrl(`/${subject.slug}/${summary.slug}`, file.path)}
+                size={formatSize(file.size)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

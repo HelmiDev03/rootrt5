@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { describeFile } from "@/lib/file-label";
 import { ChevronDownIcon, FileIcon } from "./icons";
 
 type StatementFile = { name: string; url: string };
-
-// "sujets/TP1_Design_Patterns.pdf" → { label: "sujets/TP1 Design Patterns", type: "PDF" }
-function describe(name: string) {
-  const slash = name.lastIndexOf("/") + 1;
-  const file = name.slice(slash);
-  const dot = file.lastIndexOf(".");
-  const base = dot > 0 ? file.slice(0, dot) : file;
-  return { label: name.slice(0, slash) + base.replace(/[_-]+/g, " "), type: dot > 0 ? file.slice(dot + 1).toUpperCase() : "" };
-}
 
 /** The statement (énoncé) of a work: a button for a single file, a menu when there are several. */
 export function StatementMenu({ files }: { files: StatementFile[] }) {
@@ -60,7 +52,7 @@ export function StatementMenu({ files }: { files: StatementFile[] }) {
           className="absolute right-0 top-full z-30 mt-1.5 max-h-80 w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
         >
           {files.map((file) => {
-            const { label, type } = describe(file.name);
+            const { label, type } = describeFile(file.name);
             return (
               <li key={file.url} role="none">
                 <a
