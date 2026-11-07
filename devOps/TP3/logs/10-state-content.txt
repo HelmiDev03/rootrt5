@@ -1,0 +1,57 @@
+$ aws s3api get-object --bucket tp3-pulumi-state-401046276523 --key .pulumi/stacks/tp3-iac/dev.json --version-id aj6NvDWLrSeChekfNb0fhysrDwvAuv8f dev.json --query '{Size:ContentLength,Modified:LastModified}'
+{
+    "Size": 34914,
+    "Modified": "2026-11-07T09:23:05+00:00"
+}
+
+$ python -m json.tool dev.json pretty.json && head -n 29 pretty.json
+{
+    "version": 3,
+    "checkpoint": {
+        "stack": "organization/tp3-iac/dev",
+        "latest": {
+            "manifest": {
+                "time": "2026-11-07T10:23:03.167808+01:00",
+                "magic": "294a449188e3da4517a05ae33e5c1307bbafa419a82735db7986e01d5ec6b1c0",
+                "version": "v3.274.1"
+            },
+            "secrets_providers": {
+                "type": "passphrase",
+                "state": {
+                    "salt": "v1:QtFSppSOSy0=:v1:D2bN36BFh95BY/g2:poBap1SzzA6IrV/d91q24ppCVhNGPw=="
+                }
+            },
+            "resources": [
+                {
+                    "urn": "urn:pulumi:dev::tp3-iac::pulumi:pulumi:Stack::tp3-iac-dev",
+                    "custom": false,
+                    "type": "pulumi:pulumi:Stack",
+                    "outputs": {
+                        "nginx_url": "http://nginx-alb-d664ab3-1136737401.eu-north-1.elb.amazonaws.com",
+                        "site_bucket": "site-bucket-94f71b4",
+                        "site_url": "http://site-bucket-94f71b4.s3-website.eu-north-1.amazonaws.com"
+                    },
+                    "created": "2026-11-07T09:20:10.4810178Z",
+                    "modified": "2026-11-07T09:20:10.4810178Z"
+                },
+
+$ python -c 'import json
+for r in json.load(open("dev.json"))["checkpoint"]["latest"]["resources"]:
+    print(f"{r["type"].split(":")[-1]:<27} {r["urn"].split("::")[-1]:<19} {r.get("id","").split(":")[-1]}")'
+Stack                       tp3-iac-dev         
+aws                         default_7_54_0      3895da15-93c2-4fd6-ba35-29e6057e3796
+TaskDefinition              nginx-task          nginx
+TargetGroup                 nginx-tg            targetgroup/nginx-tg-f0c898f/3cd6bbec0b96e221
+SecurityGroup               web-sg              sg-07b41981ec59b6c60
+Bucket                      site-bucket         site-bucket-94f71b4
+BucketPublicAccessBlock     site-public-access  site-bucket-94f71b4
+BucketWebsiteConfiguration  site-website        site-bucket-94f71b4
+BucketObjectv2              error.html          site-bucket-94f71b4/error.html
+BucketObjectv2              index.html          site-bucket-94f71b4/index.html
+BucketObjectv2              style.css           site-bucket-94f71b4/style.css
+BucketPolicy                site-policy         site-bucket-94f71b4
+Cluster                     tp3-cluster         cluster/tp3-cluster-f219f31
+LoadBalancer                nginx-alb           loadbalancer/app/nginx-alb-d664ab3/1cbf3ea5cd996f9f
+Listener                    http-listener       listener/app/nginx-alb-d664ab3/1cbf3ea5cd996f9f/25b6be18b835ee1d
+Service                     nginx-svc           service/tp3-cluster-f219f31/nginx-svc-fd7080c
+
