@@ -1,0 +1,16 @@
+$ pulumi version
+v3.274.1
+
+$ aws --version
+aws-cli/2.36.8 Python/3.14.6 Windows/11 exe/AMD64
+
+$ python --version
+Python 3.14.7
+
+$ aws sts get-caller-identity
+{
+    "UserId": "AIDAV2YBYRGV32MXVEV3F",
+    "Account": "401046276523",
+    "Arn": "arn:aws:iam::401046276523:user/helmidev03"
+}
+

@@ -1,0 +1,10 @@
+$ pulumi login 's3://tp3-pulumi-state-401046276523?region=eu-north-1'
+Logged in to Helmi as HELMI\helmi (s3://tp3-pulumi-state-401046276523?region=eu-north-1)
+
+$ pulumi whoami -v
+Access token source: none
+User: HELMI\helmi
+Organizations: 
+Backend URL: s3://tp3-pulumi-state-401046276523?region=eu-north-1
+Token type: personal
+

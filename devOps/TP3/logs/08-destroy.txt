@@ -1,0 +1,77 @@
+$ pulumi destroy --yes --stack dev
+Previewing destroy (dev):
+
+@ previewing destroy....
+ -  aws:ecs:Service nginx-svc delete 
+ -  aws:s3:BucketPolicy site-policy delete 
+ -  aws:lb:Listener http-listener delete 
+ -  aws:s3:BucketPublicAccessBlock site-public-access delete 
+ -  aws:s3:BucketWebsiteConfiguration site-website delete 
+ -  aws:s3:BucketObjectv2 error.html delete 
+ -  aws:s3:BucketObjectv2 index.html delete 
+ -  aws:lb:LoadBalancer nginx-alb delete 
+ -  aws:s3:BucketObjectv2 style.css delete 
+ -  aws:ec2:SecurityGroup web-sg delete 
+ -  aws:s3:Bucket site-bucket delete 
+ -  aws:ecs:Cluster tp3-cluster delete 
+ -  aws:ecs:TaskDefinition nginx-task delete 
+ -  aws:lb:TargetGroup nginx-tg delete 
+ -  pulumi:pulumi:Stack tp3-iac-dev delete 
+ -  pulumi:pulumi:Stack tp3-iac-dev delete 
+    pulumi:pulumi:Stack tp3-iac-dev  
+Resources:
+    - 15 to delete
+
+Destroying (dev):
+
+@ destroying....
+ -  aws:ecs:Service nginx-svc deleting (0s) 
+@ destroying...............................................................................................................................................................................................................................................................................................................................................................................................................................................
+ -  aws:ecs:Service nginx-svc deleted (428s) 
+@ destroying....
+ -  aws:s3:BucketPolicy site-policy deleting (0s) 
+ -  aws:lb:Listener http-listener deleting (0s) 
+@ destroying....
+ -  aws:s3:BucketPolicy site-policy deleted (0.90s) 
+ -  aws:lb:Listener http-listener deleted (0.96s) 
+ -  aws:s3:BucketObjectv2 error.html deleting (0s) 
+ -  aws:s3:BucketObjectv2 index.html deleting (0s) 
+ -  aws:lb:LoadBalancer nginx-alb deleting (0s) 
+ -  aws:s3:BucketPublicAccessBlock site-public-access deleting (0s) 
+ -  aws:s3:BucketWebsiteConfiguration site-website deleting (0s) 
+ -  aws:s3:BucketObjectv2 style.css deleting (0s) 
+@ destroying....
+ -  aws:s3:BucketObjectv2 error.html deleted (0.41s) 
+ -  aws:s3:BucketObjectv2 index.html deleted (0.73s) 
+@ destroying....
+ -  aws:s3:BucketPublicAccessBlock site-public-access deleted (1s) 
+ -  aws:s3:BucketWebsiteConfiguration site-website deleted (1s) 
+ -  aws:s3:BucketObjectv2 style.css deleted (2s) 
+@ destroying...................
+ -  aws:lb:LoadBalancer nginx-alb deleted (17s) 
+@ destroying....
+ -  aws:ecs:TaskDefinition nginx-task deleting (0s) 
+ -  aws:ecs:Cluster tp3-cluster deleting (0s) 
+ -  aws:lb:TargetGroup nginx-tg deleting (0s) 
+ -  aws:ec2:SecurityGroup web-sg deleting (0s) 
+ -  aws:s3:Bucket site-bucket deleting (0s) 
+ -  aws:ecs:TaskDefinition nginx-task deleted (0.58s) 
+@ destroying....
+ -  aws:ecs:Cluster tp3-cluster deleted (0.94s) 
+ -  aws:lb:TargetGroup nginx-tg deleted (1s) 
+@ destroying....
+ -  aws:ec2:SecurityGroup web-sg deleted (2s) 
+ -  aws:s3:Bucket site-bucket deleted (2s) 
+@ destroying....
+ -  pulumi:pulumi:Stack tp3-iac-dev deleting (0s) 
+@ destroying.....
+    pulumi:pulumi:Stack tp3-iac-dev  
+ -  pulumi:pulumi:Stack tp3-iac-dev deleted (0.36s) 
+Resources:
+    - 15 deleted
+
+Duration: 7m35s
+
+The resources in the stack have been deleted, but the history and configuration associated with the stack are still maintained. 
+If you want to remove the stack completely, run `pulumi stack rm dev`.
+

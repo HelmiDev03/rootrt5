@@ -1,0 +1,45 @@
+$ pulumi stack output
+Current stack outputs (3):
+    OUTPUT       VALUE
+    nginx_url    http://nginx-alb-d664ab3-1136737401.eu-north-1.elb.amazonaws.com
+    site_bucket  site-bucket-94f71b4
+    site_url     http://site-bucket-94f71b4.s3-website.eu-north-1.amazonaws.com
+
+$ aws ecs describe-services --cluster $CLUSTER --services $SVC --query 'services[0].{service:serviceName,status:status,type:launchType,desired:desiredCount,running:runningCount}' --output table
+------------------------------------------------------------------
+|                        DescribeServices                        |
++---------+----------+---------------------+---------+-----------+
+| desired | running  |       service       | status  |   type    |
++---------+----------+---------------------+---------+-----------+
+|  1      |  1       |  nginx-svc-fd7080c  |  ACTIVE |  FARGATE  |
++---------+----------+---------------------+---------+-----------+
+
+$ aws elbv2 describe-target-health --target-group-arn $TG --query 'TargetHealthDescriptions[].{ip:Target.Id,port:Target.Port,etat:TargetHealth.State}' --output table
+-------------------------------------
+|       DescribeTargetHealth        |
++----------+----------------+-------+
+|   etat   |      ip        | port  |
++----------+----------------+-------+
+|  healthy |  172.31.14.74  |  80   |
++----------+----------------+-------+
+
+$ curl -sI $NGINX | head -1
+HTTP/1.1 200 OK
+
+$ curl -s $NGINX | grep -o '<title>.*</title>'
+<title>Welcome to nginx!</title>
+
+$ aws s3 ls s3://$BKT
+2026-11-07 10:20:19        374 error.html
+2026-11-07 10:20:20        877 index.html
+2026-11-07 10:20:20        805 style.css
+
+$ curl -sI $SITE | head -1
+HTTP/1.1 200 OK
+
+$ curl -s $SITE | grep -o '<title>.*</title>'
+<title>TP3 IaC – Site statique S3</title>
+
+$ curl -s -o /dev/null -w '%{http_code}\n' $SITE/page-inexistante
+404
+

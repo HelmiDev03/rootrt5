@@ -1,0 +1,30 @@
+$ pulumi preview --stack dev
+Previewing update (dev):
+
+@ previewing update..................
+ +  pulumi:pulumi:Stack tp3-iac-dev create 
+@ previewing update.....
+ +  aws:ecs:Cluster tp3-cluster create 
+ +  aws:ec2:SecurityGroup web-sg create 
+ +  aws:lb:TargetGroup nginx-tg create 
+ +  aws:ecs:TaskDefinition nginx-task create 
+ +  aws:s3:Bucket site-bucket create 
+ +  aws:lb:LoadBalancer nginx-alb create 
+ +  aws:s3:BucketPublicAccessBlock site-public-access create 
+ +  aws:s3:BucketWebsiteConfiguration site-website create 
+ +  aws:s3:BucketObjectv2 style.css create 
+ +  aws:s3:BucketObjectv2 index.html create 
+ +  aws:s3:BucketObjectv2 error.html create 
+ +  aws:lb:Listener http-listener create 
+ +  aws:s3:BucketPolicy site-policy create 
+ +  aws:ecs:Service nginx-svc create 
+ +  pulumi:pulumi:Stack tp3-iac-dev create 
+Outputs:
+    nginx_url  : [unknown]
+    site_bucket: "site-bucket-500b2ef"
+    site_url   : [unknown]
+
+Resources:
+    + 15 to create
+
+

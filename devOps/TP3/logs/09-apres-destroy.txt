@@ -1,0 +1,15 @@
+$ pulumi stack ls
+NAME  LAST UPDATE     RESOURCE COUNT
+dev*  10 seconds ago  0
+
+$ aws ecs list-clusters
+{
+    "clusterArns": []
+}
+
+$ aws elbv2 describe-load-balancers --query 'LoadBalancers[].LoadBalancerName'
+[]
+
+$ aws s3 ls
+2026-11-07 10:15:10 tp3-pulumi-state-401046276523
+

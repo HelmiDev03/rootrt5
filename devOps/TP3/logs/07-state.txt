@@ -1,0 +1,12 @@
+$ aws s3 ls s3://tp3-pulumi-state-401046276523 --recursive
+2026-11-07 10:23:06      34914 .pulumi/backups/tp3-iac/dev/dev.1794043384320087800.json
+2026-11-07 10:23:05      34914 .pulumi/history/tp3-iac/dev/dev-1794043383809313200.checkpoint.json
+2026-11-07 10:23:05       1273 .pulumi/history/tp3-iac/dev/dev-1794043383809313200.history.json
+2026-11-07 10:15:18         11 .pulumi/meta.yaml
+2026-11-07 10:23:05      34914 .pulumi/stacks/tp3-iac/dev.json
+2026-11-07 10:23:05      34712 .pulumi/stacks/tp3-iac/dev.json.bak
+
+$ pulumi stack ls
+NAME  LAST UPDATE   RESOURCE COUNT
+dev*  1 minute ago  16
+

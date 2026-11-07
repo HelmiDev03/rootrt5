@@ -1,0 +1,87 @@
+$ pulumi up --yes --stack dev
+Previewing update (dev):
+
+@ previewing update.....
+ +  pulumi:pulumi:Stack tp3-iac-dev create 
+@ previewing update....
+ +  aws:ec2:SecurityGroup web-sg create 
+ +  aws:lb:TargetGroup nginx-tg create 
+ +  aws:ecs:TaskDefinition nginx-task create 
+ +  aws:ecs:Cluster tp3-cluster create 
+ +  aws:s3:Bucket site-bucket create 
+ +  aws:lb:LoadBalancer nginx-alb create 
+ +  aws:s3:BucketPublicAccessBlock site-public-access create 
+ +  aws:s3:BucketWebsiteConfiguration site-website create 
+ +  aws:s3:BucketObjectv2 style.css create 
+ +  aws:s3:BucketObjectv2 error.html create 
+ +  aws:s3:BucketObjectv2 index.html create 
+ +  aws:lb:Listener http-listener create 
+ +  aws:s3:BucketPolicy site-policy create 
+ +  aws:ecs:Service nginx-svc create 
+ +  pulumi:pulumi:Stack tp3-iac-dev create 
+Outputs:
+    nginx_url  : [unknown]
+    site_bucket: "site-bucket-c0c7924"
+    site_url   : [unknown]
+
+Resources:
+    + 15 to create
+
+Updating (dev):
+
+@ updating.....
+ +  pulumi:pulumi:Stack tp3-iac-dev creating (0s) 
+@ updating.....
+ +  aws:ec2:SecurityGroup web-sg creating (0s) 
+ +  aws:ecs:Cluster tp3-cluster creating (0s) 
+ +  aws:lb:TargetGroup nginx-tg creating (0s) 
+ +  aws:ecs:TaskDefinition nginx-task creating (0s) 
+ +  aws:s3:Bucket site-bucket creating (0s) 
+@ updating.....
+ +  aws:ecs:TaskDefinition nginx-task created (1s) 
+ +  aws:lb:TargetGroup nginx-tg created (2s) 
+@ updating....
+ +  aws:ec2:SecurityGroup web-sg created (3s) 
+@ updating....
+ +  aws:lb:LoadBalancer nginx-alb creating (0s) 
+ +  aws:s3:Bucket site-bucket created (3s) 
+ +  aws:s3:BucketPublicAccessBlock site-public-access creating (0s) 
+ +  aws:s3:BucketWebsiteConfiguration site-website creating (0s) 
+ +  aws:s3:BucketObjectv2 error.html creating (0s) 
+ +  aws:s3:BucketObjectv2 index.html creating (0s) 
+ +  aws:s3:BucketObjectv2 style.css creating (0s) 
+@ updating....
+ +  aws:s3:BucketPublicAccessBlock site-public-access created (0.90s) 
+@ updating....
+ +  aws:s3:BucketWebsiteConfiguration site-website created (1s) 
+ +  aws:s3:BucketObjectv2 error.html created (1s) 
+ +  aws:s3:BucketObjectv2 index.html created (1s) 
+ +  aws:s3:BucketObjectv2 style.css created (1s) 
+@ updating....
+ +  aws:s3:BucketPolicy site-policy creating (0s) 
+@ updating.....
+ +  aws:s3:BucketPolicy site-policy created (2s) 
+@ updating......
+ +  aws:ecs:Cluster tp3-cluster created (11s) 
+@ updating..............................................................................................................................................................
+ +  aws:lb:LoadBalancer nginx-alb created (163s) 
+ +  aws:lb:Listener http-listener creating (0s) 
+@ updating....
+ +  aws:lb:Listener http-listener created (0.80s) 
+@ updating....
+ +  aws:ecs:Service nginx-svc creating (0s) 
+@ updating....
+ +  aws:ecs:Service nginx-svc created (1s) 
+@ updating....
+ +  pulumi:pulumi:Stack tp3-iac-dev created (173s) 
+Outputs:
+    nginx_url  : "http://nginx-alb-d664ab3-1136737401.eu-north-1.elb.amazonaws.com"
+    site_bucket: "site-bucket-94f71b4"
+    site_url   : "http://site-bucket-94f71b4.s3-website.eu-north-1.amazonaws.com"
+
+Resources:
+    + 15 created
+
+Duration: 2m56s
+
+

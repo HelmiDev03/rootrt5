@@ -1,0 +1,61 @@
+TP3 GRP1 :  IaC en Local OU sur le Cloud
+Saloua BEN YAHIA
+•
+29 sept. (Modification : 29 sept.)
+100 points
+A. Partie Local
+
+---
+Option B
+
+
+TP 1 : Automatisation de l'Infrastructure avec Pulumi (Facile)
+Objectif : Ce TP est une introduction pratique à l'Infrastructure as Code (IaC) en utilisant Pulumi. Vous apprendrez à programmer votre infrastructure en utilisant un langage de votre choix (Python, TypeScript, Go) pour déployer des ressources sur le cloud, ce qui vous donnera un contrôle total et une reproductibilité de votre environnement.
+
+Durée estimée : 4 heures
+
+Prérequis :
+
+Connaissances de base de la ligne de commande.
+
+Un compte sur un fournisseur de cloud public (AWS, Azure ou Google Cloud Platform).
+
+Pulumi CLI installé et configuré pour votre fournisseur de cloud.
+
+Instructions :
+
+Initialisation du projet :
+
+Créez un nouveau répertoire de projet et naviguez-y.
+
+Exécutez pulumi new et choisissez le modèle de projet correspondant à votre fournisseur de cloud et à votre langage de programmation.
+
+Suivez les instructions pour nommer votre projet et votre "stack" (un environnement d'exécution, comme dev ou prod).
+
+Déploiement d'une application et d'un stockage :
+
+Dans le fichier de code principal du projet, ajoutez le code pour déployer un conteneur web simple (par exemple, Nginx ou Apache).
+
+Assurez-vous que le service que vous déployez est accessible publiquement et exposez le port approprié.
+
+Ajoutez ensuite une autre ressource de stockage, telle qu'un bucket S3 sur AWS ou un blob container sur Azure. Configurez-le pour qu'il puisse héberger des fichiers statiques.
+
+Gestion de l'état :
+
+Le fichier de configuration de Pulumi contient déjà un backend pour la gestion de l'état. Pour ce TP, utilisez un backend distant et sécurisé, comme un bucket cloud, afin de permettre la collaboration.
+
+Déploiement et destruction :
+
+Lancez la commande de déploiement pour voir Pulumi analyser votre code, planifier et créer les ressources.
+
+Vérifiez que votre application et votre bucket sont correctement déployés.
+
+Une fois que vous avez terminé, exécutez la commande de destruction pour supprimer toutes les ressources créées et éviter des frais inutiles.
+
+Conseils :
+
+Commencez par des ressources simples.
+
+N'hésitez pas à consulter la documentation de Pulumi pour des exemples de code.
+
+Pensez à bien sécuriser vos clés d'accès au cloud.
