@@ -93,6 +93,25 @@ ul.tight { margin:8px 0; padding-left:20px; } ul.tight li { margin:3px 0; }
 .note.warn { background:var(--warn-bg); border-color:var(--warn-line); }
 .note b { display:block; margin-bottom:2px; }
 
+/* presenters: one colour per member */
+.m1 { --m:#0d9488; --m-soft:#f0fdfa; } .m2 { --m:#4f46e5; --m-soft:#eef2ff; }
+.m3 { --m:#db2777; --m-soft:#fdf2f8; } .m4 { --m:#d97706; --m-soft:#fffbeb; }
+html.dark .m1 { --m:#2dd4bf; --m-soft:#0f2a2a; } html.dark .m2 { --m:#818cf8; --m-soft:#1e1b4b; }
+html.dark .m3 { --m:#f472b6; --m-soft:#2a0f1f; } html.dark .m4 { --m:#fbbf24; --m-soft:#2a2108; }
+.turn { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin-top:38px; padding:14px 18px;
+  background:var(--m-soft); border:1px solid var(--line); border-left:6px solid var(--m); border-radius:14px; }
+.content > .turn:first-child { margin-top:0; }
+.turn + section { margin-top:12px; scroll-margin-top:118px; }
+.turn .who-big { flex:none; background:var(--m); color:#fff; font-weight:700; font-size:15px; padding:6px 14px; border-radius:10px; }
+html.dark .turn .who-big { color:#0b0f17; }
+.turn .what { font-weight:600; font-size:15.5px; }
+.turn .what span { display:block; font-weight:400; font-size:13.5px; color:var(--muted); }
+h2 { flex-wrap:wrap; }
+h2 .who { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--m); background:var(--m-soft);
+  border:1px solid var(--m); padding:2px 10px; border-radius:999px; }
+.toc a .mb { margin-left:auto; flex:none; font-size:10.5px; font-weight:700; color:var(--m); background:var(--m-soft);
+  border:1px solid var(--m); padding:0 6px; border-radius:999px; line-height:16px; }
+
 /* terminal */
 .term { background:#0b1020; border-radius:12px; overflow:hidden; margin:14px 0; border:1px solid #1e293b; }
 .term-bar { display:flex; align-items:center; gap:7px; padding:9px 14px; background:#151b2e; border-bottom:1px solid #1e293b; }
@@ -162,7 +181,7 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
   .toc h5, .toc .grp, .toc .top { display:none; }
   .toc a { padding:4px 11px 4px 5px; font-size:13px; border:1px solid var(--line); border-radius:999px; }
   .toc a .i { width:20px; height:20px; font-size:11px; border-radius:50%; }
-  .content > section:first-child { margin-top:22px; }
+  .content > section:first-child, .content > .turn:first-child { margin-top:22px; }
 }
 @media (max-width:760px) {
   .stats, .takeaways { grid-template-columns:1fr 1fr; }
@@ -215,30 +234,32 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
   <aside class="side">
     <nav class="toc">
       <h5>Contents</h5>
-      <a href="#obj"><span class="i">◎</span>Goal &amp; architecture</a>
-      <a href="#repo"><span class="i">1</span>Git repository</a>
-      <a href="#argocd"><span class="i">2</span>ArgoCD setup</a>
+      <a href="#obj"><span class="i">◎</span>Goal &amp; architecture<b class="mb m1">M1</b></a>
+      <a href="#repo"><span class="i">1</span>Git repository<b class="mb m1">M1</b></a>
+      <a href="#argocd"><span class="i">2</span>ArgoCD setup<b class="mb m2">M2</b></a>
       <div class="grp">Part A · demos</div>
-      <a href="#s1"><span class="i">S1</span>Continuous deployment</a>
-      <a href="#s2"><span class="i">S2</span>Drift &amp; self-healing</a>
-      <a href="#s3"><span class="i">S3</span>Sync vs Health</a>
-      <a href="#s4"><span class="i">S4</span>History &amp; rollback</a>
+      <a href="#s1"><span class="i">S1</span>Continuous deployment<b class="mb m2">M2</b></a>
+      <a href="#s2"><span class="i">S2</span>Drift &amp; self-healing<b class="mb m2">M2</b></a>
+      <a href="#s3"><span class="i">S3</span>Sync vs Health<b class="mb m3">M3</b></a>
+      <a href="#s4"><span class="i">S4</span>History &amp; rollback<b class="mb m3">M3</b></a>
       <div class="grp">Part B · observability</div>
-      <a href="#stack"><span class="i">3</span>Prometheus stack</a>
-      <a href="#dash"><span class="i">4</span>Dashboard &amp; PromQL</a>
-      <a href="#alert"><span class="i">5</span>Alerting</a>
-      <a href="#s5"><span class="i">S5</span>Correlation demo</a>
+      <a href="#stack"><span class="i">3</span>Prometheus stack<b class="mb m3">M3</b></a>
+      <a href="#dash"><span class="i">4</span>Dashboard &amp; PromQL<b class="mb m4">M4</b></a>
+      <a href="#alert"><span class="i">5</span>Alerting<b class="mb m4">M4</b></a>
+      <a href="#s5"><span class="i">S5</span>Correlation demo<b class="mb m4">M4</b></a>
       <div class="grp">Review</div>
       <a href="#review"><span class="i">⚖</span>Engineering review</a>
-      <a href="#retenir"><span class="i">★</span>Key takeaways</a>
+      <a href="#retenir"><span class="i">★</span>Key takeaways<b class="mb m4">M4</b></a>
       <a class="top" href="#"><span class="i">↑</span>Back to top</a>
     </nav>
   </aside>
   <main class="content">
 
   <!-- ===================================================== GOAL -->
+  <div class="turn m1"><span class="who-big">Member 1</span>
+    <div class="what">Architecture &amp; Git repository<span>Goal &amp; architecture · Git repository &amp; Kustomize structure</span></div></div>
   <section id="obj">
-    <h2><span class="n">◎</span>Goal &amp; architecture</h2>
+    <h2><span class="n">◎</span>Goal &amp; architecture<em class="who m1">Member 1</em></h2>
     <p>Deliver an application to Kubernetes <b>only through Git</b>: the developer commits, <b>ArgoCD</b> (running inside the
        cluster) notices the new revision and applies it. Nobody needs <code>kubectl apply</code> or cluster credentials outside the cluster
        (<i>pull model</i>). The same mechanism installs the observability stack, so the whole platform is described in the repository.</p>
@@ -326,7 +347,7 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
 
   <!-- ===================================================== REPO -->
   <section id="repo">
-    <h2><span class="n">1</span>Git repository &amp; Kustomize structure</h2>
+    <h2><span class="n">1</span>Git repository &amp; Kustomize structure<em class="who m1">Member 1</em></h2>
     <p>The manifests live in <code>devOps/TP4/gitops/</code>. ArgoCD watches the <b><code>tp4-gitops</code> branch</b> of the
        course repository: the demo commits (scale, new tag, broken tag, revert) land on that branch, so <code>main</code>,
        which publishes this site, only gets the final state. Nothing is plain raw YAML: workloads use a Kustomize
@@ -409,8 +430,10 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
   </section>
 
   <!-- ===================================================== ARGOCD -->
+  <div class="turn m2"><span class="who-big">Member 2</span>
+    <div class="what">ArgoCD + scenarios 1 &amp; 2<span>ArgoCD setup &amp; bootstrap · S1 continuous deployment · S2 drift &amp; self-healing</span></div></div>
   <section id="argocd">
-    <h2><span class="n">2</span>ArgoCD setup &amp; bootstrap</h2>
+    <h2><span class="n">2</span>ArgoCD setup &amp; bootstrap<em class="who m2">Member 2</em></h2>
     <p>The only imperative step is <code>bootstrap/install.sh</code>. It applies ArgoCD with <b>server-side apply</b> (the
        ApplicationSet CRD is too large for a client-side apply), creates the Grafana admin <code>Secret</code> with a random password so
        it is <b>never committed</b>, and creates the root Application. After that, ArgoCD pulls everything else.</p>
@@ -449,7 +472,7 @@ root                <span class="ok">Synced   Healthy</span>   77900de7e79621213
 
   <!-- ===================================================== S1 -->
   <section id="s1">
-    <h2><span class="n">S1</span>Automated continuous deployment <small>Part A · scenario 1</small></h2>
+    <h2><span class="n">S1</span>Automated continuous deployment <small>Part A · scenario 1</small><em class="who m2">Member 2</em></h2>
     <p>One commit changes the prod overlay: <b>image tag 6.16.0 → 6.17.0</b> and <b>replicas 2 → 3</b>. After <code>git push</code>
        we only watch; no <code>kubectl</code> or <code>argocd</code> command touches the cluster.</p>
     <div class="flow"><span>git push 12:43:13</span><em>→</em><span>ArgoCD polls (30 s ± 5 s)</span><em>→</em><span>sync 12:44:08 (+55 s)</span><em>→</em><span>3/3 pods on 6.17.0 at 12:44:22 (+69 s)</span></div>
@@ -492,7 +515,7 @@ replicaset.apps/podinfo-7dfdf7f5c7   3         3         3       15s   <span cla
 
   <!-- ===================================================== S2 -->
   <section id="s2">
-    <h2><span class="n">S2</span>Configuration drift &amp; self-healing <small>Part A · scenario 2</small></h2>
+    <h2><span class="n">S2</span>Configuration drift &amp; self-healing <small>Part A · scenario 2</small><em class="who m2">Member 2</em></h2>
     <p>Three unauthorised manual changes made from the terminal. ArgoCD <b>watches</b> the live objects (Kubernetes informers, no polling
        needed for the cluster side), sees the difference with Git and, because <code>selfHeal: true</code>, re-applies the Git state.</p>
 <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/04-scenario2-drift-self-healing.txt</span></div><pre><span class="hd">### A. Manual deletion of the Deployment</span>
@@ -529,8 +552,10 @@ deployment.apps "podinfo" deleted from podinfo-prod namespace
   </section>
 
   <!-- ===================================================== S3 -->
+  <div class="turn m3"><span class="who-big">Member 3</span>
+    <div class="what">Scenarios 3 &amp; 4 + metrics collection<span>S3 Sync vs Health · S4 history &amp; rollback · Prometheus stack &amp; scraping</span></div></div>
   <section id="s3">
-    <h2><span class="n">S3</span>Error handling: Sync Status vs Health Status <small>Part A · scenario 3</small></h2>
+    <h2><span class="n">S3</span>Error handling: Sync Status vs Health Status <small>Part A · scenario 3</small><em class="who m3">Member 3</em></h2>
     <p>We commit a tag that <b>does not exist</b> (<code>6.99.0-broken</code>). The manifest is valid YAML and ArgoCD applies it
        successfully, but the kubelet can never pull the image.</p>
 <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/05-scenario3-sync-vs-health.txt</span></div><pre><span class="del">-    newTag: "6.17.0"</span>
@@ -575,7 +600,7 @@ Warning  Failed  kubelet  Failed to pull image "ghcr.io/stefanprodan/podinfo:6.9
 
   <!-- ===================================================== S4 -->
   <section id="s4">
-    <h2><span class="n">S4</span>History &amp; fast rollback <small>Part A · scenario 4</small></h2>
+    <h2><span class="n">S4</span>History &amp; fast rollback <small>Part A · scenario 4</small><em class="who m3">Member 3</em></h2>
     <p>ArgoCD keeps the list of deployed revisions (<code>revisionHistoryLimit: 10</code>). We roll back to the last good one,
        <code>255722f</code> (6.17.0), from the <i>History and Rollback</i> panel / CLI.</p>
     <figure><img src="screenshots/15-s4-argocd-history-and-rollback.png" alt="history">
@@ -635,7 +660,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
 
   <!-- ===================================================== STACK -->
   <section id="stack">
-    <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small></h2>
+    <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small><em class="who m3">Member 3</em></h2>
     <p><b>kube-prometheus-stack</b> is deployed by the ArgoCD Application <code>monitoring-stack</code> (Helm chart pinned to 93.3.0,
        values from our repository). Our own objects (ServiceMonitors, rules, dashboard) are a separate Application, <code>monitoring-config</code>,
        so the stack can be upgraded independently of our configuration.</p>
@@ -683,8 +708,10 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
   </section>
 
   <!-- ===================================================== DASHBOARD -->
+  <div class="turn m4"><span class="who-big">Member 4</span>
+    <div class="what">Dashboard, alerting, scenario 5 &amp; conclusion<span>Grafana dashboard &amp; PromQL · Alerting · S5 correlation · Key takeaways</span></div></div>
   <section id="dash">
-    <h2><span class="n b">4</span>Unified Grafana dashboard &amp; PromQL <small>Part B · step 3</small></h2>
+    <h2><span class="n b">4</span>Unified Grafana dashboard &amp; PromQL <small>Part B · step 3</small><em class="who m4">Member 4</em></h2>
     <p>The dashboard <b>"TP4 – GitOps &amp; Workloads Overview"</b> is a JSON file in Git
        (<code>monitoring/config/dashboards/tp4-gitops-overview.json</code>). A <code>configMapGenerator</code> turns it into a ConfigMap labelled
        <code>grafana_dashboard=1</code>, which the Grafana sidecar loads into the <i>TP4</i> folder. Editing the dashboard is a commit like any
@@ -717,7 +744,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
 
   <!-- ===================================================== ALERTING -->
   <section id="alert">
-    <h2><span class="n b">5</span>Alerting <small>Part B · step 4</small></h2>
+    <h2><span class="n b">5</span>Alerting <small>Part B · step 4</small><em class="who m4">Member 4</em></h2>
     <p>The rules are a <code>PrometheusRule</code> in Git, evaluated by Prometheus every 15 s and sent to Alertmanager when firing.
        Grafana lists them too (data-source-managed rules) with the <b>Normal / Pending / Firing</b> states.</p>
     <div class="tw"><table>
@@ -754,7 +781,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
 
   <!-- ===================================================== S5 -->
   <section id="s5">
-    <h2><span class="n b">S5</span>Correlation: GitOps, metrics &amp; alerting <small>Part B · scenario 5</small></h2>
+    <h2><span class="n b">S5</span>Correlation: GitOps, metrics &amp; alerting <small>Part B · scenario 5</small><em class="who m4">Member 4</em></h2>
     <p>Three commits, observed only through Prometheus (sampled every 10 s) and Grafana: <b>(1)</b> scale up 3 → 5 replicas,
        <b>(2)</b> re-inject the broken tag, <b>(3)</b> fix it with <code>git revert</code>. This time no ArgoCD rollback: the
        incident is solved <b>through GitOps only</b>.</p>
@@ -830,7 +857,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
   </section>
 
   <section id="retenir">
-    <h2><span class="n">★</span>Key takeaways</h2>
+    <h2><span class="n">★</span>Key takeaways<em class="who m4">Member 4</em></h2>
     <div class="takeaways">
       <div><b>Single source of truth</b>The whole platform (apps, ArgoCD projects, Prometheus stack, alerts, dashboards) is in Git. The cluster can be rebuilt with <code>install.sh</code>, and everything after it is pulled.</div>
       <div><b>Pull-based CD</b>A commit reaches production in about a minute with no deploy command, and every change has an author and a message.</div>
