@@ -35,8 +35,10 @@ spec:
     - name: tp4.workloads
       rules:
         - alert: PodImagePullOrCrashLoop
+          # Do NOT keep "reason" in the result: kubelet alternates ErrImagePull <-> ImagePullBackOff
+          # every few seconds, each flip would create a new series and restart the "for" timer.
           expr: |
-            max by (namespace, pod, container, reason) (
+            max by (namespace, pod, container) (
               kube_pod_container_status_waiting_reason{
                 namespace=~"podinfo-.*",
                 reason=~"ErrImagePull|ImagePullBackOff|CrashLoopBackOff"
@@ -46,8 +48,8 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "{{ $labels.namespace }}/{{ $labels.pod }} is stuck in {{ $labels.reason }}"
-            description: "Container {{ $labels.container }} has been waiting with reason {{ $labels.reason }} for more than 1 minute."
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} cannot start (image pull error or crash loop)"
+            description: "Container {{ $labels.container }} has been waiting in ErrImagePull, ImagePullBackOff or CrashLoopBackOff for more than 1 minute."
         - alert: PodinfoHighErrorRate
           expr: |
             sum by (namespace) (rate(http_request_duration_seconds_count{namespace=~"podinfo-.*", status=~"5.."}[5m]))
