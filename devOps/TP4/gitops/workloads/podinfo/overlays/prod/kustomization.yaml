@@ -13,11 +13,11 @@ labels:
 # The two values changed during the demo: image tag and number of replicas.
 images:
   - name: ghcr.io/stefanprodan/podinfo
-    newTag: "6.16.0"
+    newTag: "6.17.0"
 
 replicas:
   - name: podinfo
-    count: 2
+    count: 3
 
 patches:
   - target:
