@@ -10,9 +10,9 @@ cd "$(dirname "$0")"
 echo "==> Installing ArgoCD"
 # Server-side apply: the ApplicationSet CRD is too large for a client-side apply annotation.
 kubectl apply -k argocd --server-side --force-conflicts
-kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
-kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=300s
-kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=300s
+kubectl -n argocd rollout status deploy/argocd-server --timeout=1200s
+kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=1200s
+kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=1200s
 
 echo "==> Grafana admin secret (not stored in Git)"
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -

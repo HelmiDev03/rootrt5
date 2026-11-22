@@ -22,3 +22,25 @@ patches:
       data:
         timeout.reconciliation: 30s
         timeout.reconciliation.jitter: 5s
+  # The repository is the whole course site (~13 MB of history): on a slow link the first
+  # "git fetch" takes longer than the default 60 s gRPC / 90 s exec timeouts.
+  - target:
+      kind: ConfigMap
+      name: argocd-cmd-params-cm
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cmd-params-cm
+      data:
+        controller.repo.server.timeout.seconds: "300"
+        server.repo.server.timeout.seconds: "300"
+  - target:
+      kind: Deployment
+      name: argocd-repo-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ARGOCD_EXEC_TIMEOUT
+          value: 5m
