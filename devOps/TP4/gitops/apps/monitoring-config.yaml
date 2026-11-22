@@ -1,0 +1,32 @@
+# Our own observability objects: ServiceMonitors of the ArgoCD control plane,
+# alerting rules and the Grafana dashboard (loaded by the Grafana sidecar).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-config
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: tp4
+  source:
+    repoURL: https://github.com/HelmiDev03/rootrt5.git
+    targetRevision: tp4-gitops
+    path: devOps/TP4/gitops/monitoring/config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

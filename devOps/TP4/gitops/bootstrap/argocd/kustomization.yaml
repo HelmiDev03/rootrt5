@@ -1,0 +1,24 @@
+# ArgoCD itself, pinned to an exact release. Applied once by bootstrap/install.sh
+# (the only "push" of the whole setup); everything else is then pulled from Git by ArgoCD.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.6.2/manifests/install.yaml
+
+patches:
+  # Poll Git every 30 s instead of 120 s: the cluster is local, so GitHub cannot call a webhook.
+  - target:
+      kind: ConfigMap
+      name: argocd-cm
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cm
+      data:
+        timeout.reconciliation: 30s
+        timeout.reconciliation.jitter: 5s

@@ -1,0 +1,68 @@
+# Scrape the ArgoCD control plane. The metrics Services are part of the upstream install:
+#   argocd-metrics             application controller :8082 (argocd_app_info, argocd_app_sync_total, ...)
+#   argocd-server-metrics      API server / UI       :8083 (argocd_redis_request_*, grpc_server_*)
+#   argocd-repo-server         repo server            :8084 (argocd_git_request_total, ...)
+#   argocd-applicationset-controller                  :8080 (argocd_appset_*)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-metrics
+  labels:
+    app.kubernetes.io/part-of: tp4-gitops
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-server-metrics
+  labels:
+    app.kubernetes.io/part-of: tp4-gitops
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-server-metrics
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-repo-server-metrics
+  labels:
+    app.kubernetes.io/part-of: tp4-gitops
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-repo-server
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-applicationset-controller-metrics
+  labels:
+    app.kubernetes.io/part-of: tp4-gitops
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  endpoints:
+    - port: metrics
+      interval: 30s

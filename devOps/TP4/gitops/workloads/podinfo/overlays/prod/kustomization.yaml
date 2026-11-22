@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: podinfo-prod
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      env: prod
+
+# The two values changed during the demo: image tag and number of replicas.
+images:
+  - name: ghcr.io/stefanprodan/podinfo
+    newTag: "6.16.0"
+
+replicas:
+  - name: podinfo
+    count: 2
+
+patches:
+  - target:
+      kind: Deployment
+      name: podinfo
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "#2e7d32"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "TP4 GitOps - prod"
