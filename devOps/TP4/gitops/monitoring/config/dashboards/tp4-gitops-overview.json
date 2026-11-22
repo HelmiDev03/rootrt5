@@ -470,8 +470,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "transparent",
+                "color": "green",
                 "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              },
+              {
+                "color": "gray",
+                "value": 3
               }
             ]
           },
@@ -556,8 +568,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "transparent",
+                "color": "green",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "gray",
+                "value": 2
               }
             ]
           },
@@ -1261,7 +1281,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (status) (rate(http_request_duration_seconds_count{namespace=~\"$namespace\"}[2m]))",
+          "expr": "sum by (status) (rate(http_request_duration_seconds_count{namespace=~\"$namespace\", path!~\"healthz|readyz\"}[2m]))",
           "legendFormat": "HTTP {{status}}",
           "refId": "A"
         }
@@ -1320,7 +1340,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(http_request_duration_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[2m])) / sum(rate(http_request_duration_seconds_count{namespace=~\"$namespace\"}[2m]))",
+          "expr": "sum(rate(http_request_duration_seconds_count{namespace=~\"$namespace\", path!~\"healthz|readyz\", status=~\"5..\"}[2m])) / sum(rate(http_request_duration_seconds_count{namespace=~\"$namespace\", path!~\"healthz|readyz\"}[2m]))",
           "legendFormat": "5xx ratio",
           "refId": "A"
         }
@@ -1379,7 +1399,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[2m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=~\"$namespace\", path!~\"healthz|readyz\"}[2m])))",
           "legendFormat": "p50",
           "refId": "A"
         },
@@ -1388,7 +1408,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[2m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=~\"$namespace\", path!~\"healthz|readyz\"}[2m])))",
           "legendFormat": "p95",
           "refId": "B"
         }
