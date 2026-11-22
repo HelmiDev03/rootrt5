@@ -1,0 +1,70 @@
+$ git diff --stat; git diff | grep '^[-+] '
+warning: in the working copy of 'devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml', LF will be replaced by CRLF the next time Git touches it
+ devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+warning: in the working copy of 'devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml', LF will be replaced by CRLF the next time Git touches it
+-    newTag: "6.17.0"
++    newTag: "6.99.0-broken"
+
+$ git commit -qam 'TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)' && git log --oneline -1
+warning: in the working copy of 'devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml', LF will be replaced by CRLF the next time Git touches it
+4c45573 TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)
+
+$ git push origin tp4-gitops     # 12:47:20
+
+12:47:23 (+3s)  sync=Synced rev=255722f health=Healthy | pods: 3 Running,
+12:48:10 (+50s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ContainerCreating, 3 Running,
+12:48:13 (+53s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ErrImagePull, 3 Running,
+12:48:24 (+64s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ImagePullBackOff, 3 Running,
+12:48:38 (+78s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ErrImagePull, 3 Running,
+12:48:52 (+92s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ImagePullBackOff, 3 Running,
+12:49:08 (+108s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ErrImagePull, 3 Running,
+12:49:25 (+125s)  sync=Synced rev=4c45573 health=Progressing | pods: 1 ImagePullBackOff, 3 Running,
+12:49:42 (+142s)  sync=Synced rev=4c45573 health=Degraded | pods: 1 ImagePullBackOff, 3 Running,
+
+$ apps
+NAME                SYNC     HEALTH     REVISION
+monitoring-config   Synced   Healthy    4c45573a1457cf691e7cae018f25472487d61a3c
+monitoring-stack    Synced   Healthy    <none>
+podinfo-dev         Synced   Healthy    4c45573a1457cf691e7cae018f25472487d61a3c
+podinfo-prod        Synced   Degraded   4c45573a1457cf691e7cae018f25472487d61a3c
+root                Synced   Healthy    4c45573a1457cf691e7cae018f25472487d61a3c
+
+$ kubectl -n podinfo-prod get deploy,rs,pods -l app.kubernetes.io/name=podinfo -o wide | cut -c1-170
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES                                       SELECTOR
+deployment.apps/podinfo   3/3     1            3           4m8s   podinfo      ghcr.io/stefanprodan/podinfo:6.99.0-broken   app.kubernetes.io/name=podinfo
+
+NAME                                 DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES                                       SELECTOR
+replicaset.apps/podinfo-585b655b77   1         1         0       94s     podinfo      ghcr.io/stefanprodan/podinfo:6.99.0-broken   app.kubernetes.io/name=podinfo,pod-temp
+replicaset.apps/podinfo-6c85c6d4f5   0         0         0       3m25s   podinfo      ghcr.io/stefanprodan/podinfo:6.17.0          app.kubernetes.io/name=podinfo,pod-temp
+replicaset.apps/podinfo-7dfdf7f5c7   3         3         3       4m8s    podinfo      ghcr.io/stefanprodan/podinfo:6.17.0          app.kubernetes.io/name=podinfo,pod-temp
+
+NAME                           READY   STATUS             RESTARTS   AGE    IP            NODE   NOMINATED NODE   READINESS GATES
+pod/podinfo-585b655b77-2nmw4   0/1     ImagePullBackOff   0          94s    10.244.0.39   tp4    <none>           <none>
+pod/podinfo-7dfdf7f5c7-r4hxq   1/1     Running            0          4m8s   10.244.0.32   tp4    <none>           <none>
+pod/podinfo-7dfdf7f5c7-wgshz   1/1     Running            0          4m8s   10.244.0.34   tp4    <none>           <none>
+pod/podinfo-7dfdf7f5c7-wnwzk   1/1     Running            0          4m8s   10.244.0.33   tp4    <none>           <none>
+
+$ kubectl -n podinfo-prod get deploy podinfo -o jsonpath='{range .status.conditions[*]}{.type}={.status} {.reason}: {.message}{"\n"}{end}'
+Available=True MinimumReplicasAvailable: Deployment has minimum availability.
+Progressing=False ProgressDeadlineExceeded: ReplicaSet "podinfo-585b655b77" has timed out progressing.
+
+$ kubectl -n podinfo-prod describe pod podinfo-585b655b77-2nmw4 | sed -n '/Events:/,$p'
+Events:
+  Type     Reason     Age                From               Message
+  ----     ------     ----               ----               -------
+  Normal   Scheduled  95s                default-scheduler  Successfully assigned podinfo-prod/podinfo-585b655b77-2nmw4 to tp4
+  Normal   BackOff    21s (x4 over 92s)  kubelet            spec.containers{podinfo}: Back-off pulling image "ghcr.io/stefanprodan/podinfo:6.99.0-broken"
+  Warning  Failed     21s (x4 over 92s)  kubelet            spec.containers{podinfo}: Error: ImagePullBackOff
+  Normal   Pulling    7s (x4 over 94s)   kubelet            spec.containers{podinfo}: Pulling image "ghcr.io/stefanprodan/podinfo:6.99.0-broken"
+  Warning  Failed     6s (x4 over 93s)   kubelet            spec.containers{podinfo}: Failed to pull image "ghcr.io/stefanprodan/podinfo:6.99.0-broken": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/stefanprodan/podinfo:6.99.0-broken": failed to resolve reference "ghcr.io/stefanprodan/podinfo:6.99.0-broken": ghcr.io/stefanprodan/podinfo:6.99.0-broken: not found
+  Warning  Failed     6s (x4 over 93s)   kubelet            spec.containers{podinfo}: Error: ErrImagePull
+
+$ kubectl -n argocd get app podinfo-prod -o jsonpath='{.status.health}{"\n"}'
+{"lastTransitionTime":"2026-11-22T11:49:39Z","message":"Caused by apps/Deployment:podinfo-prod/podinfo","status":"Degraded"}
+
+$ kubectl -n podinfo-prod exec deploy/loadgen -- curl -s http://podinfo:9898/version   # service still answers: old pods kept (maxUnavailable: 0)
+{
+  "commit": "fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+  "version": "6.17.0"
+}

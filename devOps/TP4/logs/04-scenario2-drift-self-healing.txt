@@ -1,0 +1,55 @@
+### A. Manual deletion of the Deployment
+$ kubectl -n podinfo-prod get deploy podinfo
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+podinfo   3/3     3            3           18m
+
+$ kubectl -n podinfo-prod delete deployment podinfo     # 12:45:33.282
+deployment.apps "podinfo" deleted from podinfo-prod namespace
+
+12:45:33.680  argocd: OutOfSync/Healthy   deploy: 0/3 ready, age 0s
+12:45:35.238  argocd: Synced/Progressing   deploy: 0/3 ready, age 2s
+12:45:36.873  argocd: Synced/Progressing   deploy: 1/3 ready, age 3s
+12:45:38.353  argocd: Synced/Healthy   deploy: 3/3 ready, age 4s
+
+$ kubectl -n podinfo-prod get deploy podinfo
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+podinfo   3/3     3            3           5s
+
+### B. Manual modification (kubectl scale = same effect as kubectl edit on spec.replicas)
+$ kubectl -n podinfo-prod scale deployment podinfo --replicas=6     # 12:45:39.164
+deployment.apps/podinfo scaled
+
+12:45:39.449  argocd: OutOfSync/Progressing   spec.replicas=6
+12:45:40.586  argocd: Synced/Healthy   spec.replicas=3
+
+$ kubectl -n podinfo-prod get deploy podinfo
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+podinfo   3/3     3            3           43s
+
+### C. Same with kubectl edit-like patch of the container env (UI message)
+$ kubectl -n podinfo-prod set env deployment/podinfo PODINFO_UI_MESSAGE='hacked by hand'     # 12:46:17.549
+deployment.apps/podinfo env updated
+
+12:46:17.833  argocd: OutOfSync   env=hacked by hand
+12:46:18.904  argocd: Synced   env=TP4 GitOps - prod
+
+$ kubectl -n argocd get events --field-selector involvedObject.name=podinfo-prod --sort-by=.lastTimestamp -o custom-columns=TIME:.lastTimestamp,REASON:.reason,MESSAGE:.message | tail -14
+2026-11-22T11:45:35Z   ResourceUpdated      Updated health status: Healthy -> Progressing (Caused by apps/Deployment:podinfo-prod/podinfo)
+2026-11-22T11:45:38Z   ResourceUpdated      Updated health status: Progressing -> Healthy
+2026-11-22T11:45:39Z   OperationStarted     Initiated automated sync to '255722f548a92fd51025a08cc6875a58045c30e1'
+2026-11-22T11:45:39Z   ResourceUpdated      Updated sync status: Synced -> OutOfSync
+2026-11-22T11:45:39Z   ResourceUpdated      Updated health status: Healthy -> Progressing (Caused by apps/Deployment:podinfo-prod/podinfo)
+2026-11-22T11:45:40Z   OperationCompleted   Partial sync operation to 255722f548a92fd51025a08cc6875a58045c30e1 succeeded
+2026-11-22T11:45:40Z   ResourceUpdated      Updated sync status: OutOfSync -> Synced
+2026-11-22T11:45:40Z   ResourceUpdated      Updated health status: Progressing -> Healthy
+2026-11-22T11:46:17Z   OperationStarted     Initiated automated sync to '255722f548a92fd51025a08cc6875a58045c30e1'
+2026-11-22T11:46:17Z   ResourceUpdated      Updated sync status: Synced -> OutOfSync
+2026-11-22T11:46:17Z   ResourceUpdated      Updated health status: Healthy -> Progressing (Caused by apps/Deployment:podinfo-prod/podinfo)
+2026-11-22T11:46:18Z   OperationCompleted   Partial sync operation to 255722f548a92fd51025a08cc6875a58045c30e1 succeeded
+2026-11-22T11:46:18Z   ResourceUpdated      Updated sync status: OutOfSync -> Synced
+2026-11-22T11:46:18Z   ResourceUpdated      Updated health status: Progressing -> Healthy
+
+$ kubectl -n argocd get app podinfo-prod -o jsonpath='{.status.operationState.operation.initiatedBy}{"\n"}{.status.operationState.message}{"\n"}'
+{"automated":true}
+successfully synced (all tasks run)
+

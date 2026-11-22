@@ -1,0 +1,31 @@
+# Observed during scenario 3: the alert never leaves 'pending'
+$ curl -s localhost:9090/api/v1/query --data-urlencode 'query=kube_pod_container_status_waiting_reason{namespace="podinfo-prod"} == 1' | grep -o '"reason":"[A-Za-z]*"'
+"reason":"ImagePullBackOff"
+
+# kubelet alternates ErrImagePull <-> ImagePullBackOff: grouping by reason restarts the 'for: 1m' timer at each flip
+$ git diff | grep '^[-+] '
+warning: in the working copy of 'devOps/TP4/gitops/monitoring/config/prometheusrule-gitops.yaml', LF will be replaced by CRLF the next time Git touches it
++          # Do NOT keep "reason" in the result: kubelet alternates ErrImagePull <-> ImagePullBackOff
++          # every few seconds, each flip would create a new series and restart the "for" timer.
+-            max by (namespace, pod, container, reason) (
++            max by (namespace, pod, container) (
+-            summary: "{{ $labels.namespace }}/{{ $labels.pod }} is stuck in {{ $labels.reason }}"
+-            description: "Container {{ $labels.container }} has been waiting with reason {{ $labels.reason }} for more than 1 minute."
++            summary: "{{ $labels.namespace }}/{{ $labels.pod }} cannot start (image pull error or crash loop)"
++            description: "Container {{ $labels.container }} has been waiting in ErrImagePull, ImagePullBackOff or CrashLoopBackOff for more than 1 minute."
+
+$ git commit -qam 'TP4: PodImagePullOrCrashLoop - drop the flapping reason label from the alert series' && git log --oneline -1
+warning: in the working copy of 'devOps/TP4/gitops/monitoring/config/prometheusrule-gitops.yaml', LF will be replaced by CRLF the next time Git touches it
+75898f3 TP4: PodImagePullOrCrashLoop - drop the flapping reason label from the alert series
+
+$ git push origin tp4-gitops     # 12:50:50
+
+12:51:40  monitoring-config synced to 75898f3 (PrometheusRule updated, operator reloads Prometheus)
+12:51:41  ArgoCDAppDegraded=pending  PodImagePullOrCrashLoop=pending
+12:51:56  ArgoCDAppDegraded=firing  PodImagePullOrCrashLoop=pending
+12:52:38  ArgoCDAppDegraded=firing  PodImagePullOrCrashLoop=firing
+
+$ curl -s localhost:9090/api/v1/alerts | node -e 'for(const a of JSON.parse(require("fs").readFileSync(0)).data.alerts) if(/^(ArgoCD|Pod)/.test(a.labels.alertname)) console.log(a.labels.alertname.padEnd(25), a.state.padEnd(8), (a.labels.severity||"").padEnd(9), "since", a.activeAt.slice(11,19), "-", a.annotations.summary)'
+PodImagePullOrCrashLoop   firing   critical  since 11:51:36 - podinfo-prod/podinfo-585b655b77-2nmw4 is stuck in ImagePullBackOff
+ArgoCDAppDegraded         firing   critical  since 11:49:56 - ArgoCD application podinfo-prod is Degraded
+

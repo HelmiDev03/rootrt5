@@ -1,0 +1,41 @@
+### t0 - initial state
+13:00:22  Synced/Healthy         desired=3  available=3  unavailable=0  syncs=7   alerts: none
+
+### Step 1 - scale up through Git: 3 -> 5 replicas
+warning: in the working copy of 'devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml', LF will be replaced by CRLF the next time Git touches it
+-    count: 3
++    count: 5
+$ git commit -qam 'TP4 scenario 5: scale prod podinfo 3 -> 5 replicas' && git push origin tp4-gitops     # 13:00:23
+2d87a01 TP4 scenario 5: scale prod podinfo 3 -> 5 replicas
+
+13:00:26  Synced/Healthy         desired=3  available=3  unavailable=0  syncs=7   alerts: none
+13:01:10  Synced/Progressing     desired=3  available=3  unavailable=0  syncs=7   alerts: none
+13:01:21  Synced/Healthy         desired=5  available=5  unavailable=0  syncs=7   alerts: none
+
+### Step 2 - re-inject the faulty image tag through Git
+warning: in the working copy of 'devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml', LF will be replaced by CRLF the next time Git touches it
+-    newTag: "6.17.0"
++    newTag: "6.99.0-broken"
+$ git commit -qam 'TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken' && git push origin tp4-gitops     # 13:01:21
+155af2e TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken
+
+13:01:24  Synced/Healthy         desired=5  available=5  unavailable=0  syncs=8   alerts: none
+13:02:40  Synced/Progressing     desired=5  available=5  unavailable=0  syncs=8   alerts: none
+13:02:51  Synced/Progressing     desired=5  available=5  unavailable=1  syncs=8   alerts: PodImagePullOrCrashLoop=pending
+13:03:02  Synced/Progressing     desired=5  available=5  unavailable=1  syncs=9   alerts: PodImagePullOrCrashLoop=pending
+13:03:57  Synced/Progressing     desired=5  available=5  unavailable=1  syncs=9   alerts: PodImagePullOrCrashLoop=firing
+13:04:18  Synced/Degraded        desired=5  available=5  unavailable=1  syncs=9   alerts: PodImagePullOrCrashLoop=firing
+13:04:29  Synced/Degraded        desired=5  available=5  unavailable=1  syncs=9   alerts: ArgoCDAppDegraded=pending PodImagePullOrCrashLoop=firing
+13:06:29  Synced/Degraded        desired=5  available=5  unavailable=1  syncs=9   alerts: ArgoCDAppDegraded=firing PodImagePullOrCrashLoop=firing
+SHOT_FIRING 13:06:29
+
+### Step 3 - resolve through GitOps: git revert of the faulty commit
+$ git revert --no-edit 155af2e && git push origin tp4-gitops     # 13:06:56
+[tp4-gitops b1cfa4d] Revert "TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken"
+
+13:06:59  Synced/Degraded        desired=5  available=5  unavailable=1  syncs=9   alerts: ArgoCDAppDegraded=firing PodImagePullOrCrashLoop=firing
+13:07:43  OutOfSync/Degraded     desired=5  available=5  unavailable=1  syncs=9   alerts: ArgoCDAppDegraded=firing PodImagePullOrCrashLoop=firing
+13:07:54  Synced/Healthy         desired=5  available=5  unavailable=0  syncs=10  alerts: ArgoCDAppDegraded=firing
+13:08:04  Synced/Healthy         desired=5  available=5  unavailable=0  syncs=10  alerts: none
+
+13:08:05  Synced/Healthy         desired=5  available=5  unavailable=0  syncs=10  alerts: none

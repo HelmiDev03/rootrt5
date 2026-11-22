@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab report TP4 GitOps</title>
+<meta name="description" content="Lab report for DevOps TP4 (INSAT RT5): continuous deployment with GitOps and ArgoCD (Kustomize overlays, App-of-Apps, self-healing, rollback) observed with Prometheus, Grafana and alerting, with the 5 demo scenarios run on a real cluster.">
+<script>
+// Theme: the choice saved by the RT5 site (key "theme"), otherwise the system setting.
+function applyTheme(){
+  var saved=null;
+  try{saved=localStorage.getItem("theme");}catch(e){}
+  var dark=saved?saved==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.classList.toggle("dark",dark);
+}
+applyTheme();
+</script>
+<style>
+:root {
+  --bg:#f4f6f9; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --soft:#f1f5f9; --codebg:#eef0f5;
+  --ac:#0d9488; --ac-soft:#f0fdfa; --ac-line:#99f6e4; --ac-ink:#115e59;
+  --or:#ea580c; --or-soft:#fff7ed; --or-line:#fed7aa; --ok:#16a34a; --bad:#dc2626; --info-bg:#f0fdfa; --warn-bg:#fffbeb; --warn-line:#fde68a;
+}
+html.dark {
+  --bg:#0b0f17; --card:#111827; --ink:#e5e7eb; --muted:#94a3b8; --line:#1f2937; --soft:#0f172a; --codebg:#1e293b;
+  --ac:#2dd4bf; --ac-soft:#0f2a2a; --ac-line:#134e4a; --ac-ink:#5eead4;
+  --or:#fb923c; --or-soft:#2a1709; --or-line:#7c2d12; --ok:#4ade80; --bad:#f87171; --info-bg:#0f2a2a; --warn-bg:#2a2108; --warn-line:#713f12;
+}
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font:15.5px/1.65 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+a { color:var(--ac); }
+.wrap { max-width:1260px; margin:0 auto; padding:0 18px 60px; }
+code, pre, .mono { font-family:"Cascadia Code", Consolas, "SFMono-Regular", monospace; }
+p code, li code, td code, h3 code { background:var(--codebg); padding:1px 6px; border-radius:5px; font-size:.88em; }
+
+/* hero */
+.hero { background:radial-gradient(1100px 420px at 88% -10%, #14b8a666, transparent),
+        radial-gradient(700px 300px at 10% 120%, #f9731633, transparent),
+        linear-gradient(135deg,#0f172a 0%,#0b2b33 55%,#134e4a 100%); color:#fff; padding:46px 0 92px; }
+.hero .wrap { padding-bottom:0; }
+.kicker { display:inline-flex; gap:8px; align-items:center; font-size:12.5px; letter-spacing:.6px; text-transform:uppercase;
+  color:#ccfbf1; background:#ffffff14; border:1px solid #ffffff22; padding:5px 12px; border-radius:999px; }
+.hero h1 { font-size:34px; line-height:1.2; margin:16px 0 8px; letter-spacing:-.4px; }
+.hero h1 span { background:linear-gradient(90deg,#5eead4,#fdba74); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.hero .sub { color:#cbd5e1; max-width:760px; margin:0; font-size:16.5px; }
+.meta { display:flex; flex-wrap:wrap; gap:10px 26px; margin-top:24px; font-size:14px; color:#cbd5e1; }
+.meta b { color:#fff; font-weight:600; }
+.team { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.team span { background:#ffffff12; border:1px solid #ffffff26; padding:6px 12px; border-radius:10px; font-size:14px; }
+
+/* stats */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:-56px; }
+.stat { background:var(--card); border-radius:14px; padding:16px 18px; box-shadow:0 10px 30px #0f172a14; border:1px solid var(--line); }
+.stat b { display:block; font-size:24px; letter-spacing:-.3px; }
+.stat span { color:var(--muted); font-size:13.5px; }
+.stat.g b { color:var(--ok); } .stat.t b { color:var(--ac); } .stat.o b { color:var(--or); }
+
+/* layout */
+.layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:26px; align-items:start; margin-top:22px; }
+.content > section:first-child { margin-top:0; }
+.side { position:sticky; top:18px; }
+.toc { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 10px 10px; box-shadow:0 2px 6px #0f172a08; }
+.toc h5 { margin:2px 10px 10px; font-size:11.5px; letter-spacing:.9px; text-transform:uppercase; color:var(--muted); }
+.toc .grp { margin:10px 10px 4px; font-size:10.5px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); }
+.toc a { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); opacity:.85; font-size:14px;
+  padding:6px 10px; border-radius:10px; transition:background .15s, color .15s; }
+.toc a .i { flex:none; width:24px; height:24px; display:grid; place-items:center; border-radius:7px;
+  background:var(--soft); color:var(--muted); font-size:12px; font-weight:700; }
+.toc a:hover { background:var(--soft); color:var(--ac); opacity:1; }
+.toc a.on { background:var(--ac-soft); color:var(--ac); font-weight:600; opacity:1; }
+.toc a.on .i { background:var(--ac); color:#fff; }
+.toc .top { margin-top:8px; border-top:1px solid var(--line); border-radius:0; padding-top:10px; font-size:13px; color:var(--muted); }
+.toc .top .i { background:none; }
+
+/* sections */
+section { scroll-margin-top:18px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:28px 30px; margin-top:22px; box-shadow:0 2px 6px #0f172a08; }
+h2 { display:flex; align-items:center; gap:12px; font-size:22px; margin:0 0 12px; letter-spacing:-.2px; }
+h2 .n { flex:none; width:34px; height:34px; display:grid; place-items:center; border-radius:10px; font-size:15px; color:#fff; background:linear-gradient(135deg,#0d9488,#14b8a6); }
+h2 .n.b { background:linear-gradient(135deg,#ea580c,#f59e0b); }
+h2 small { font-size:12px; font-weight:600; color:var(--muted); background:var(--soft); border:1px solid var(--line); padding:2px 9px; border-radius:999px; }
+h3 { font-size:15px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:24px 0 10px; }
+section > p:first-of-type { margin-top:0; }
+ul.tight { margin:8px 0; padding-left:20px; } ul.tight li { margin:3px 0; }
+
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 0; }
+.chips span { font-size:13px; background:var(--ac-soft); color:var(--ac-ink); border:1px solid var(--ac-line); padding:4px 10px; border-radius:8px; }
+.chips span.a { background:var(--or-soft); color:var(--or); border-color:var(--or-line); }
+
+.note { border-radius:12px; padding:12px 16px; margin:16px 0; font-size:14.5px; border:1px solid; }
+.note.info { background:var(--info-bg); border-color:var(--ac-line); }
+.note.warn { background:var(--warn-bg); border-color:var(--warn-line); }
+.note b { display:block; margin-bottom:2px; }
+
+/* terminal */
+.term { background:#0b1020; border-radius:12px; overflow:hidden; margin:14px 0; border:1px solid #1e293b; }
+.term-bar { display:flex; align-items:center; gap:7px; padding:9px 14px; background:#151b2e; border-bottom:1px solid #1e293b; }
+.term-bar i { width:11px; height:11px; border-radius:50%; background:#ef4444; }
+.term-bar i:nth-child(2) { background:#f59e0b; } .term-bar i:nth-child(3) { background:#22c55e; }
+.term-bar span { margin-left:8px; color:#94a3b8; font-size:12.5px; font-family:Consolas, monospace; }
+.term pre { margin:0; padding:14px 16px; color:#cbd5e1; font-size:12.6px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.term .p { color:#4ade80; font-weight:700; } .term .c { color:#fff; font-weight:600; }
+.term .add { color:#86efac; } .term .del { color:#fca5a5; } .term .hd { color:#fde68a; font-weight:600; }
+.term .ok { color:#4ade80; font-weight:700; } .term .bad { color:#f87171; font-weight:700; } .term .warn { color:#fbbf24; font-weight:700; }
+.term .cm { color:#7c8aa5; font-style:italic; } .term .k { color:#7dd3fc; } .term .s { color:#a5e3a1; }
+
+details { margin:14px 0; }
+summary { cursor:pointer; font-weight:600; color:var(--ac); padding:8px 0; }
+
+/* table */
+.tw { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:14.2px; margin:10px 0; }
+th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { font-size:12.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); background:var(--soft); }
+td:first-child { font-weight:600; }
+td code { white-space:pre-wrap; overflow-wrap:anywhere; }
+.pill { display:inline-block; font-size:12px; font-weight:700; padding:1px 8px; border-radius:999px; }
+.pill.ok { background:#dcfce7; color:#166534; } .pill.bad { background:#fee2e2; color:#991b1b; } .pill.or { background:#ffedd5; color:#9a3412; } .pill.bl { background:#dbeafe; color:#1e40af; }
+
+/* figures */
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:14px 0; }
+.grid > * { min-width:0; }
+figure { margin:14px 0; }
+figure img { width:100%; display:block; border-radius:10px; border:1px solid var(--line); cursor:zoom-in; box-shadow:0 6px 20px #0f172a12; }
+figcaption { font-size:13.2px; color:var(--muted); margin-top:7px; }
+figcaption b { color:var(--ink); }
+
+.shot { display:grid; grid-template-columns:1.6fr 1fr; gap:22px; align-items:center; padding:16px 0; border-bottom:1px dashed var(--line); }
+.shot:last-of-type { border-bottom:0; }
+.shot > * { min-width:0; }
+.shot img { width:100%; display:block; border-radius:10px; border:1px solid var(--line); cursor:zoom-in; box-shadow:0 6px 20px #0f172a12; }
+.shot h4 { margin:0 0 8px; font-size:15.5px; }
+.shot ul { margin:0; padding-left:18px; font-size:14px; line-height:1.55; }
+.shot li { margin:4px 0; }
+
+.flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0 4px; font-size:13.5px; }
+.flow span { background:var(--ac-soft); color:var(--ac-ink); border:1px solid var(--ac-line); padding:5px 11px; border-radius:8px; font-weight:600; }
+.flow span.r { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+.flow span.o { background:var(--or-soft); color:var(--or); border-color:var(--or-line); }
+.flow em { color:var(--muted); font-style:normal; }
+
+.arch { width:100%; height:auto; display:block; margin:8px 0 4px; }
+.arch text { font-family:"Segoe UI", system-ui, sans-serif; text-anchor:middle; fill:var(--ink); }
+.arch .t-h { font-size:15px; font-weight:700; } .arch .t-b { font-size:14px; font-weight:700; }
+.arch .t-s { font-size:12px; fill:var(--muted); }
+.arch .box { fill:var(--card); stroke:var(--line); }
+
+.takeaways { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px; }
+.takeaways div { border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--soft); }
+.takeaways b { display:block; color:var(--ac); margin-bottom:3px; }
+footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px; }
+
+#lb { position:fixed; inset:0; background:#0f172ae6; display:none; align-items:center; justify-content:center; z-index:9; cursor:zoom-out; padding:20px; }
+#lb img { max-width:100%; max-height:100%; border-radius:8px; }
+#lb.on { display:flex; }
+
+@media (max-width:1000px) {
+  .layout { grid-template-columns:minmax(0,1fr); gap:0; }
+  .side { position:static; }
+  .toc { display:flex; flex-wrap:wrap; gap:6px; padding:10px; }
+  .toc h5, .toc .grp, .toc .top { display:none; }
+  .toc a { padding:4px 11px 4px 5px; font-size:13px; border:1px solid var(--line); border-radius:999px; }
+  .toc a .i { width:20px; height:20px; font-size:11px; border-radius:50%; }
+  .content > section:first-child { margin-top:22px; }
+}
+@media (max-width:760px) {
+  .stats, .takeaways { grid-template-columns:1fr 1fr; }
+  .grid, .shot { grid-template-columns:1fr; }
+  section { padding:22px 18px; }
+  .hero h1 { font-size:27px; }
+}
+@media print {
+  html.dark { --bg:#fff; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --soft:#f1f5f9; }
+  body { background:#fff; }
+  .side, #lb { display:none !important; }
+  .layout { display:block; }
+  section { box-shadow:none; break-inside:auto; }
+  .term, figure, .stat, table, .shot { break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">Lab report · DevOps · TP4</span>
+    <h1>GitOps continuous deployment with <span>ArgoCD</span>, observed with Prometheus &amp; Grafana</h1>
+    <p class="sub">A Git branch is the single source of truth: ArgoCD pulls it into a Kubernetes cluster, repairs any manual drift,
+       and a Prometheus / Grafana stack (itself deployed by ArgoCD) watches both the delivery pipeline and the workloads.
+       The five demo scenarios were run for real; every log and screenshot below comes from that run.</p>
+    <div class="meta">
+      <div>Class <b>RT5 · INSAT</b></div>
+      <div>Instructor <b>Saloua Ben Yahia</b></div>
+      <div>Date <b>November 22, 2026</b></div>
+      <div>GitOps branch <b><a style="color:#5eead4" href="https://github.com/HelmiDev03/rootrt5/tree/tp4-gitops/devOps/TP4/gitops">tp4-gitops</a></b></div>
+    </div>
+    <div class="team">
+      <span>Mohamed Helmi Lakhder</span><span>Mouine El Dabbebi</span>
+      <span>Mohamed Amin Saddoud</span><span>Oussema Bouchaala</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats">
+    <div class="stat t"><b>5 / 5</b><span>ArgoCD applications Synced &amp; Healthy (App-of-Apps)</span></div>
+    <div class="stat g"><b>55 s</b><span>from <code>git push</code> to the cluster, with no manual command</span></div>
+    <div class="stat g"><b>≈ 1 s</b><span>self-healing after <code>kubectl delete</code> / <code>scale</code> / <code>set env</code></span></div>
+    <div class="stat o"><b>Firing → Normal</b><span>alerts raised by a bad commit, cleared by <code>git revert</code></span></div>
+  </div>
+
+  <div class="layout">
+  <aside class="side">
+    <nav class="toc">
+      <h5>Contents</h5>
+      <a href="#obj"><span class="i">◎</span>Goal &amp; architecture</a>
+      <a href="#repo"><span class="i">1</span>Git repository</a>
+      <a href="#argocd"><span class="i">2</span>ArgoCD setup</a>
+      <div class="grp">Part A · demos</div>
+      <a href="#s1"><span class="i">S1</span>Continuous deployment</a>
+      <a href="#s2"><span class="i">S2</span>Drift &amp; self-healing</a>
+      <a href="#s3"><span class="i">S3</span>Sync vs Health</a>
+      <a href="#s4"><span class="i">S4</span>History &amp; rollback</a>
+      <div class="grp">Part B · observability</div>
+      <a href="#stack"><span class="i">3</span>Prometheus stack</a>
+      <a href="#dash"><span class="i">4</span>Dashboard &amp; PromQL</a>
+      <a href="#alert"><span class="i">5</span>Alerting</a>
+      <a href="#s5"><span class="i">S5</span>Correlation demo</a>
+      <div class="grp">Review</div>
+      <a href="#review"><span class="i">⚖</span>Engineering review</a>
+      <a href="#retenir"><span class="i">★</span>Key takeaways</a>
+      <a class="top" href="#"><span class="i">↑</span>Back to top</a>
+    </nav>
+  </aside>
+  <main class="content">
+
+  <!-- ===================================================== GOAL -->
+  <section id="obj">
+    <h2><span class="n">◎</span>Goal &amp; architecture</h2>
+    <p>Deliver an application to Kubernetes <b>only through Git</b>: the developer commits, <b>ArgoCD</b> (running inside the
+       cluster) notices the new revision and applies it. Nobody needs <code>kubectl apply</code> or cluster credentials outside the cluster
+       (<i>pull model</i>). The same mechanism installs the observability stack, so the whole platform is described in the repository.</p>
+
+<svg viewBox="0 0 980 520" role="img" aria-label="TP4 architecture" class="arch">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+    <marker id="art" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0d9488"/></marker>
+    <marker id="aro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+  </defs>
+  <!-- developer -->
+  <rect x="14" y="40" width="190" height="86" rx="14" class="box" stroke-width="1.5"/>
+  <text x="109" y="76" class="t-h">Developer</text><text x="109" y="98" class="t-s">edits YAML · git commit</text>
+  <line x1="109" y1="128" x2="109" y2="178" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="140" y="158" class="t-s">git push</text>
+  <!-- github -->
+  <rect x="14" y="182" width="190" height="150" rx="14" fill="#0d948814" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="109" y="208" class="t-h" style="fill:#0d9488">GitHub</text>
+  <text x="109" y="228" class="t-s">HelmiDev03/rootrt5</text>
+  <text x="109" y="246" class="t-s">branch tp4-gitops</text>
+  <text x="109" y="270" class="t-b">devOps/TP4/gitops/</text>
+  <text x="109" y="290" class="t-s">apps/ · workloads/</text>
+  <text x="109" y="308" class="t-s">monitoring/ · bootstrap/</text>
+  <rect x="14" y="360" width="190" height="64" rx="12" fill="#ea580c14" stroke="#ea580c" stroke-width="1.3"/>
+  <text x="109" y="386" class="t-b" style="fill:#ea580c">Helm repository</text><text x="109" y="405" class="t-s">kube-prometheus-stack 93.3.0</text>
+  <!-- cluster -->
+  <rect x="250" y="10" width="716" height="500" rx="16" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="270" y="34" class="t-h" style="text-anchor:start">minikube "tp4" · Kubernetes v1.34 · 4 vCPU / 8 GB</text>
+  <!-- argocd ns -->
+  <rect x="270" y="50" width="330" height="200" rx="12" fill="#0d948810" stroke="#0d9488"/>
+  <text x="286" y="72" class="t-s" style="text-anchor:start;font-weight:700;fill:#0d9488">namespace argocd · v3.6.2</text>
+  <rect x="286" y="84" width="140" height="54" rx="9" class="box"/><text x="356" y="106" class="t-b">repo-server</text><text x="356" y="124" class="t-s">fetch · kustomize · helm</text>
+  <rect x="444" y="84" width="140" height="54" rx="9" class="box"/><text x="514" y="106" class="t-b">app-controller</text><text x="514" y="124" class="t-s">diff · sync · self-heal</text>
+  <rect x="286" y="150" width="140" height="44" rx="9" class="box"/><text x="356" y="177" class="t-b">server (UI/API)</text>
+  <rect x="444" y="150" width="140" height="84" rx="9" fill="#0d9488"/><text x="514" y="174" class="t-b" style="fill:#fff">root app</text>
+  <text x="514" y="193" class="t-s" style="fill:#ccfbf1">App-of-Apps: project</text><text x="514" y="210" class="t-s" style="fill:#ccfbf1">podinfo dev + prod</text><text x="514" y="226" class="t-s" style="fill:#ccfbf1">monitoring ×2</text>
+  <line x1="426" y1="111" x2="442" y2="111" stroke="#64748b" stroke-width="1.4" marker-end="url(#ar)"/>
+  <!-- workloads -->
+  <rect x="620" y="50" width="330" height="200" rx="12" fill="none" stroke="#94a3b8"/>
+  <text x="636" y="72" class="t-s" style="text-anchor:start;font-weight:700">namespaces podinfo-prod · podinfo-dev</text>
+  <rect x="636" y="84" width="298" height="58" rx="9" class="box"/><text x="785" y="107" class="t-b">podinfo Deployment (Kustomize overlay)</text><text x="785" y="127" class="t-s">:9898 HTTP · :9797 /metrics · probes · non-root</text>
+  <rect x="636" y="152" width="140" height="44" rx="9" class="box"/><text x="706" y="179" class="t-b">Service</text>
+  <rect x="794" y="152" width="140" height="44" rx="9" class="box"/><text x="864" y="172" class="t-b">loadgen</text><text x="864" y="188" class="t-s">5% → /status/500</text>
+  <rect x="636" y="204" width="298" height="34" rx="9" fill="#ea580c14" stroke="#ea580c"/><text x="785" y="226" class="t-s" style="fill:#ea580c;font-weight:700">ServiceMonitor podinfo (shipped with the app)</text>
+  <!-- monitoring -->
+  <rect x="270" y="270" width="680" height="226" rx="12" fill="#ea580c0d" stroke="#ea580c"/>
+  <text x="286" y="292" class="t-s" style="text-anchor:start;font-weight:700;fill:#ea580c">namespace monitoring · kube-prometheus-stack (deployed by ArgoCD)</text>
+  <rect x="286" y="306" width="150" height="74" rx="9" class="box"/><text x="361" y="334" class="t-b">Prometheus</text><text x="361" y="352" class="t-s">scrape 15 s · rules</text><text x="361" y="368" class="t-s">PrometheusRule tp4</text>
+  <rect x="456" y="306" width="150" height="74" rx="9" class="box"/><text x="531" y="334" class="t-b">Grafana</text><text x="531" y="352" class="t-s">sidecar loads</text><text x="531" y="368" class="t-s">dashboard JSON</text>
+  <rect x="626" y="306" width="150" height="74" rx="9" class="box"/><text x="701" y="334" class="t-b">Alertmanager</text><text x="701" y="352" class="t-s">receives firing</text><text x="701" y="368" class="t-s">alerts</text>
+  <rect x="796" y="306" width="140" height="74" rx="9" class="box"/><text x="866" y="334" class="t-b">kube-state-</text><text x="866" y="352" class="t-b">metrics</text><text x="866" y="370" class="t-s">+ node-exporter</text>
+  <rect x="286" y="398" width="650" height="84" rx="9" fill="#fff0" stroke="#ea580c" stroke-dasharray="5 4"/>
+  <text x="611" y="422" class="t-b" style="fill:#ea580c">ServiceMonitors</text>
+  <text x="611" y="444" class="t-s">argocd-metrics :8082 · argocd-server-metrics :8083 · argocd-repo-server :8084 · applicationset :8080</text>
+  <text x="611" y="464" class="t-s">podinfo :9797 · kubelet/cAdvisor · kube-state-metrics · node-exporter · apiserver · coredns</text>
+  <line x1="436" y1="343" x2="454" y2="343" stroke="#64748b" stroke-width="1.4" marker-end="url(#ar)"/>
+  <line x1="436" y1="330" x2="624" y2="330" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <!-- pull arrows -->
+  <path d="M286 111 C 240 111, 240 230, 206 236" fill="none" stroke="#0d9488" stroke-width="2" marker-end="url(#art)"/>
+  <text x="258" y="100" class="t-s" style="fill:#0d9488;font-weight:700">pull 30 s</text>
+  <path d="M286 120 C 236 160, 236 380, 206 392" fill="none" stroke="#ea580c" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#aro)"/>
+  <!-- sync arrows -->
+  <line x1="584" y1="111" x2="634" y2="111" stroke="#0d9488" stroke-width="2" marker-end="url(#art)"/>
+  <path d="M514 236 L 514 304" fill="none" stroke="#0d9488" stroke-width="2" marker-end="url(#art)"/>
+  <!-- scrape arrows -->
+  <path d="M361 306 C 361 270, 380 250, 420 196" fill="none" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aro)"/>
+  <path d="M400 306 C 520 262, 700 262, 760 240" fill="none" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aro)"/>
+  <text x="860" y="264" class="t-s" style="fill:#ea580c">scrape /metrics</text>
+</svg>
+
+    <div class="chips">
+      <span>ArgoCD v3.6.2</span><span>Kustomize (base + dev/prod overlays)</span><span>App-of-Apps + AppProject</span>
+      <span>podinfo 6.16.0 → 6.17.0</span>
+      <span class="a">kube-prometheus-stack 93.3.0</span><span class="a">Grafana v13.3</span><span class="a">PrometheusRule · 5 alerts</span>
+      <span class="a">minikube v1.39 (VMware) · K8s v1.34</span>
+    </div>
+
+    <h3>Why podinfo?</h3>
+    <p><a href="https://github.com/stefanprodan/podinfo">podinfo</a> is a small Go microservice made for Kubernetes demos: it publishes
+       <b>versioned images</b> (so a tag bump is a real upgrade), has <code>/healthz</code> / <code>/readyz</code> probes, and exposes Prometheus
+       metrics on <code>:9797/metrics</code> (<code>http_request_duration_seconds</code> with <code>method</code>, <code>path</code> and
+       <code>status</code> labels). It can also return any HTTP code (<code>/status/500</code>), which our load generator uses to create a
+       small error rate for the application panels.</p>
+  </section>
+
+  <!-- ===================================================== REPO -->
+  <section id="repo">
+    <h2><span class="n">1</span>Git repository &amp; Kustomize structure</h2>
+    <p>The manifests live in <code>devOps/TP4/gitops/</code>. ArgoCD watches the <b><code>tp4-gitops</code> branch</b> of the
+       course repository: the demo commits (scale, new tag, broken tag, revert) land on that branch, so <code>main</code>,
+       which publishes this site, only gets the final state. Nothing is plain raw YAML: workloads use a Kustomize
+       <b>base + overlays</b>, the monitoring stack uses the upstream <b>Helm chart</b> with values kept in Git.</p>
+
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>devOps/TP4/gitops</span></div><pre>gitops/
+├── bootstrap/                      <span class="cm"># imperative, run once by install.sh</span>
+│   ├── argocd/kustomization.yaml   <span class="cm"># ArgoCD v3.6.2 install.yaml + patches (Git polling 30 s, repo timeouts)</span>
+│   ├── root-app.yaml               <span class="cm"># App-of-Apps → syncs apps/</span>
+│   └── install.sh                  <span class="cm"># ArgoCD + Grafana admin Secret (not in Git) + root app</span>
+├── apps/                           <span class="cm"># declarative ArgoCD objects, synced by root</span>
+│   ├── project.yaml                <span class="cm"># AppProject "tp4": allowed repos, namespaces, cluster kinds</span>
+│   ├── podinfo-dev.yaml            <span class="cm"># automated: prune + selfHeal</span>
+│   ├── podinfo-prod.yaml           <span class="cm"># automated: prune + selfHeal</span>
+│   ├── monitoring-stack.yaml       <span class="cm"># Helm chart + $values from this repo (multi-source)</span>
+│   └── monitoring-config.yaml      <span class="cm"># ServiceMonitors, PrometheusRule, dashboard</span>
+├── workloads/podinfo/
+│   ├── base/                       <span class="cm"># Deployment, Service, ServiceMonitor, loadgen</span>
+│   └── overlays/
+│       ├── dev/kustomization.yaml  <span class="cm"># ns podinfo-dev, 1 replica, tag 6.17.0</span>
+│       └── prod/kustomization.yaml <span class="cm"># ns podinfo-prod, replicas + tag changed by the demos</span>
+└── monitoring/
+    ├── values/kube-prometheus-stack.yaml
+    └── config/
+        ├── servicemonitors-argocd.yaml
+        ├── prometheusrule-gitops.yaml
+        ├── dashboards/tp4-gitops-overview.json   <span class="cm"># Grafana export, versioned</span>
+        └── kustomization.yaml      <span class="cm"># configMapGenerator → label grafana_dashboard=1</span></pre></div>
+
+    <div class="grid">
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>workloads/podinfo/overlays/prod/kustomization.yaml</span></div><pre><span class="k">namespace</span>: podinfo-prod
+<span class="k">resources</span>:
+  - ../../base
+<span class="k">labels</span>:
+  - pairs: { env: prod }
+<span class="cm"># the two values changed during the demos</span>
+<span class="k">images</span>:
+  - name: ghcr.io/stefanprodan/podinfo
+    newTag: <span class="s">"6.16.0"</span>
+<span class="k">replicas</span>:
+  - name: podinfo
+    count: <span class="s">2</span>
+<span class="k">patches</span>:          <span class="cm"># UI colour + message per env</span>
+  - target: { kind: Deployment, name: podinfo }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "TP4 GitOps - prod"</pre></div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>apps/podinfo-prod.yaml</span></div><pre><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: podinfo-prod, namespace: argocd }
+<span class="k">spec</span>:
+  project: tp4
+  source:
+    repoURL: https://github.com/HelmiDev03/rootrt5.git
+    targetRevision: tp4-gitops
+    path: devOps/TP4/gitops/workloads/podinfo/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: podinfo-prod
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      prune: <span class="s">true</span>     <span class="cm"># removed from Git → removed</span>
+      selfHeal: <span class="s">true</span>  <span class="cm"># manual change → reverted</span>
+    syncOptions: [CreateNamespace=true]
+    retry: { limit: 5, backoff: { duration: 10s, factor: 2 } }</pre></div>
+    </div>
+
+    <h3>Design choices</h3>
+    <div class="tw"><table>
+      <tr><th>Choice</th><th>Why</th></tr>
+      <tr><td>Kustomize base + overlays</td><td>One base, and each environment only states what differs (namespace, tag, replicas, colour). <code>images:</code> and <code>replicas:</code> make the demo changes one-line diffs that are easy to review.</td></tr>
+      <tr><td>App-of-Apps (<code>root</code>)</td><td>Only one Application is created by hand. Adding an environment or a tool is a new file in <code>apps/</code>, which root creates automatically. The monitoring stack is part of GitOps too, which is the "engineer level" requirement of Part B.</td></tr>
+      <tr><td>AppProject <code>tp4</code></td><td>Least privilege: the child apps may only use this repository and the Prometheus chart repository, only deploy into <code>podinfo-dev</code>, <code>podinfo-prod</code>, <code>monitoring</code> and <code>kube-system</code>, and only create the cluster-scoped kinds the stack needs (CRDs, RBAC, webhooks).</td></tr>
+      <tr><td>Sync waves</td><td><code>project</code> (-1) → <code>monitoring-stack</code> (0, brings the CRDs) → workloads and monitoring-config (1). The ServiceMonitors carry <code>SkipDryRunOnMissingResource=true</code> and every app has <code>retry</code>, so the first install converges by itself even before the CRDs exist.</td></tr>
+      <tr><td><code>ignoreDifferences</code> on child <code>syncPolicy</code></td><td>ArgoCD refuses a rollback while auto-sync is on. Without this, root's self-heal would turn the child's auto-sync back on at once and an emergency rollback would be impossible (see <a href="#s4">S4</a>).</td></tr>
+      <tr><td>Helm multi-source</td><td>The upstream chart is pinned (<code>93.3.0</code>) and our <code>values.yaml</code> stays in our repo (<code>$values/…</code>). <code>ServerSideApply=true</code> is needed because the operator CRDs are bigger than the 256 KB client-side annotation limit.</td></tr>
+    </table></div>
+  </section>
+
+  <!-- ===================================================== ARGOCD -->
+  <section id="argocd">
+    <h2><span class="n">2</span>ArgoCD setup &amp; bootstrap</h2>
+    <p>The only imperative step is <code>bootstrap/install.sh</code>. It applies ArgoCD with <b>server-side apply</b> (the
+       ApplicationSet CRD is too large for a client-side apply), creates the Grafana admin <code>Secret</code> with a random password so
+       it is <b>never committed</b>, and creates the root Application. After that, ArgoCD pulls everything else.</p>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/01-bootstrap.txt (excerpt)</span></div><pre><span class="p">$</span> <span class="c">minikube start -p tp4 --driver=vmware --cpus=4 --memory=8192 --disk-size=30g --kubernetes-version=v1.34.0</span>
+* Done! kubectl is now configured to use "tp4" cluster and "default" namespace by default
+<span class="p">$</span> <span class="c">./gitops/bootstrap/install.sh</span>
+==&gt; Installing ArgoCD
+deployment "argocd-server" successfully rolled out
+deployment "argocd-repo-server" successfully rolled out
+==&gt; Grafana admin secret (not stored in Git)
+secret/grafana-admin created
+==&gt; Root application (App-of-Apps)
+application.argoproj.io/root created</pre></div>
+
+    <div class="note warn"><b>Problem met: the first Git fetch timed out</b>
+      The root app stayed <code>Unknown</code> with <code>ComparisonError … context deadline exceeded</code>. The repo-server log showed
+      <code>git fetch origin --tags --force --prune failed signal: terminated: fatal: early EOF</code>: the course repository (~13 MB of
+      history) took longer than the default <b>60 s</b> gRPC / <b>90 s</b> exec timeouts on our slow link. The fix went into the
+      bootstrap kustomization, so it is versioned and reproducible: <code>controller.repo.server.timeout.seconds: "300"</code> in
+      <code>argocd-cmd-params-cm</code> and <code>ARGOCD_EXEC_TIMEOUT=5m</code> on the repo-server
+      (commit <a href="https://github.com/HelmiDev03/rootrt5/commit/77900de">77900de</a>).</div>
+
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/02-etat-initial.txt</span></div><pre><span class="p">$</span> <span class="c">kubectl -n argocd get applications</span>
+<span class="hd">NAME                SYNC     HEALTH    REVISION</span>
+monitoring-config   <span class="ok">Synced   Healthy</span>   77900de7e796212137299992dd5ab327be2ba6a3
+monitoring-stack    <span class="ok">Synced   Healthy</span>   &lt;none&gt;       <span class="cm"># Helm chart: revision = chart version</span>
+podinfo-dev         <span class="ok">Synced   Healthy</span>   77900de7e796212137299992dd5ab327be2ba6a3
+podinfo-prod        <span class="ok">Synced   Healthy</span>   77900de7e796212137299992dd5ab327be2ba6a3
+root                <span class="ok">Synced   Healthy</span>   77900de7e796212137299992dd5ab327be2ba6a3</pre></div>
+
+    <figure><img src="screenshots/01-argocd-applications.png" alt="ArgoCD applications">
+      <figcaption><b>ArgoCD UI, Applications.</b> The 5 applications created by the App-of-Apps, all <i>Healthy</i> and <i>Synced</i>. Four come from the Git branch <code>tp4-gitops</code>; <code>monitoring-stack</code> comes from the Helm chart <code>kube-prometheus-stack 93.3.0</code>.</figcaption></figure>
+    <figure><img src="screenshots/02-argocd-podinfo-prod-tree.png" alt="podinfo-prod resource tree">
+      <figcaption><b>podinfo-prod resource tree.</b> Service, the podinfo and loadgen Deployments → ReplicaSets → Pods, and the ServiceMonitor shipped with the application. A heart means Health, a check means Sync.</figcaption></figure>
+  </section>
+
+  <!-- ===================================================== S1 -->
+  <section id="s1">
+    <h2><span class="n">S1</span>Automated continuous deployment <small>Part A · scenario 1</small></h2>
+    <p>One commit changes the prod overlay: <b>image tag 6.16.0 → 6.17.0</b> and <b>replicas 2 → 3</b>. After <code>git push</code>
+       we only watch; no <code>kubectl</code> or <code>argocd</code> command touches the cluster.</p>
+    <div class="flow"><span>git push 12:43:13</span><em>→</em><span>ArgoCD polls (30 s ± 5 s)</span><em>→</em><span>sync 12:44:08 (+55 s)</span><em>→</em><span>3/3 pods on 6.17.0 at 12:44:22 (+69 s)</span></div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/03-scenario1-deploiement-continu.txt</span></div><pre><span class="p">$</span> <span class="c">git diff</span>
+ images:
+   - name: ghcr.io/stefanprodan/podinfo
+<span class="del">-    newTag: "6.16.0"</span>
+<span class="add">+    newTag: "6.17.0"</span>
+ replicas:
+   - name: podinfo
+<span class="del">-    count: 2</span>
+<span class="add">+    count: 3</span>
+<span class="p">$</span> <span class="c">git commit -qam 'TP4 scenario 1: prod podinfo 6.16.0 -&gt; 6.17.0, 2 -&gt; 3 replicas'</span>   <span class="cm"># 255722f</span>
+<span class="p">$</span> <span class="c">git push origin tp4-gitops</span>     <span class="cm"># 12:43:13</span>
+
+<span class="cm"># no kubectl / argocd command from here: waiting for ArgoCD to pull the new revision</span>
+<span class="ok">12:44:08  ArgoCD synced podinfo-prod to 255722f  (+55 s after the push)</span>
+<span class="ok">12:44:22  rollout finished: 3/3 pods on 6.17.0  (+69 s after the push)</span>
+
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod get rs,pods -l app.kubernetes.io/name=podinfo</span>
+replicaset.apps/podinfo-5cfd7c7464   0         0         0       17m   <span class="cm"># 6.16.0, scaled down</span>
+replicaset.apps/podinfo-7dfdf7f5c7   3         3         3       15s   <span class="cm"># 6.17.0</span>
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod exec deploy/loadgen -- curl -s http://podinfo:9898/version</span>
+{ "commit": "fd3a834ed8d14b80ea334cf8a2fddd4597924da6", "version": "<span class="ok">6.17.0</span>" }</pre></div>
+
+    <div class="shot"><img src="screenshots/06-s1-argocd-sync-details.png" alt="sync details">
+      <div><h4>Sync operation details</h4><ul>
+        <li><b>Initiated by: automated sync policy</b>. No human pressed "Sync".</li>
+        <li>Revision <code>255722f</code>, the commit we pushed; duration 1 s.</li>
+        <li><code>deployment.apps/podinfo configured</code>: only the changed object is patched, the others are <i>unchanged</i>.</li></ul></div></div>
+    <div class="shot"><img src="screenshots/05-s1-argocd-podinfo-prod-6.17.0.png" alt="tree after S1">
+      <div><h4>Tree after the deployment</h4><ul>
+        <li>New ReplicaSet <code>podinfo-7dfdf7f5c7</code> (rev:2) with <b>3 pods</b>; the old one (rev:1) is kept at 0 for history.</li>
+        <li>The header shows the commit author and message. Git gives the <b>audit trail</b> of who changed production and why.</li></ul></div></div>
+    <div class="shot"><img src="screenshots/07-s1-podinfo-ui-6.17.0.png" alt="podinfo UI">
+      <div><h4>The application itself</h4><ul>
+        <li>The podinfo UI now reports <b>6.17.0</b>, with the prod colour and message coming from the overlay patch.</li>
+        <li>Rolling update with <code>maxUnavailable: 0</code>, <code>maxSurge: 1</code>: capacity never drops during the upgrade.</li></ul></div></div>
+  </section>
+
+  <!-- ===================================================== S2 -->
+  <section id="s2">
+    <h2><span class="n">S2</span>Configuration drift &amp; self-healing <small>Part A · scenario 2</small></h2>
+    <p>Three unauthorised manual changes made from the terminal. ArgoCD <b>watches</b> the live objects (Kubernetes informers, no polling
+       needed for the cluster side), sees the difference with Git and, because <code>selfHeal: true</code>, re-applies the Git state.</p>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/04-scenario2-drift-self-healing.txt</span></div><pre><span class="hd">### A. Manual deletion of the Deployment</span>
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod delete deployment podinfo</span>     <span class="cm"># 12:45:33.282</span>
+deployment.apps "podinfo" deleted from podinfo-prod namespace
+12:45:33.680  argocd: <span class="warn">OutOfSync</span>/Healthy     deploy: 0/3 ready, age 0s   <span class="cm"># already re-created 0.4 s later</span>
+12:45:35.238  argocd: <span class="ok">Synced</span>/Progressing   deploy: 0/3 ready, age 2s
+12:45:36.873  argocd: <span class="ok">Synced</span>/Progressing   deploy: 1/3 ready, age 3s
+12:45:38.353  argocd: <span class="ok">Synced/Healthy</span>       deploy: 3/3 ready, age 4s
+
+<span class="hd">### B. Manual modification (same effect as kubectl edit on spec.replicas)</span>
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod scale deployment podinfo --replicas=6</span>     <span class="cm"># 12:45:39.164</span>
+12:45:39.449  argocd: <span class="warn">OutOfSync</span>/Progressing   spec.replicas=6
+12:45:40.586  argocd: <span class="ok">Synced/Healthy</span>         spec.replicas=3      <span class="cm"># reverted in ~1.4 s</span>
+
+<span class="hd">### C. Manual change of the container environment</span>
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod set env deployment/podinfo PODINFO_UI_MESSAGE='hacked by hand'</span>   <span class="cm"># 12:46:17.549</span>
+12:46:17.833  argocd: <span class="warn">OutOfSync</span>   env=hacked by hand
+12:46:18.904  argocd: <span class="ok">Synced</span>      env=TP4 GitOps - prod
+
+<span class="p">$</span> <span class="c">kubectl -n argocd get events --field-selector involvedObject.name=podinfo-prod</span>
+11:45:39Z   OperationStarted     Initiated automated sync to '255722f548a92fd51025a08cc6875a58045c30e1'
+11:45:39Z   ResourceUpdated      Updated sync status: Synced -&gt; OutOfSync
+11:45:40Z   OperationCompleted   Partial sync operation to 255722f… succeeded
+11:45:40Z   ResourceUpdated      Updated sync status: OutOfSync -&gt; Synced</pre></div>
+    <div class="shot"><img src="screenshots/08-s2-self-heal-deployment-recreated.png" alt="self heal">
+      <div><h4>Caught during the self-heal (A)</h4><ul>
+        <li>The <code>podinfo</code> Deployment is back as <b>rev:1</b>, created "a few seconds" ago: it is a <i>new</i> object rebuilt from Git.</li>
+        <li>Its 3 pods are in <code>ContainerCreating</code>, so health is <b>Progressing</b> while sync is already <b>Synced</b>.</li>
+        <li>"Last sync: Sync OK 12:45:34" is the automated self-heal sync, 1 s after the <code>kubectl delete</code>.</li></ul></div></div>
+    <div class="note info"><b>What this shows</b>The cluster cannot drift away from Git for more than a second or two. A manual hotfix is
+      overwritten too, so the only lasting way to change production is a reviewed commit. The service never went down in A: the
+      Deployment is re-created at once and the Service keeps its endpoints as soon as the new pods are ready.</div>
+  </section>
+
+  <!-- ===================================================== S3 -->
+  <section id="s3">
+    <h2><span class="n">S3</span>Error handling: Sync Status vs Health Status <small>Part A · scenario 3</small></h2>
+    <p>We commit a tag that <b>does not exist</b> (<code>6.99.0-broken</code>). The manifest is valid YAML and ArgoCD applies it
+       successfully, but the kubelet can never pull the image.</p>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/05-scenario3-sync-vs-health.txt</span></div><pre><span class="del">-    newTag: "6.17.0"</span>
+<span class="add">+    newTag: "6.99.0-broken"</span>
+<span class="p">$</span> <span class="c">git push origin tp4-gitops</span>     <span class="cm"># 12:47:20 · commit 4c45573</span>
+12:48:10 (+50s)   sync=<span class="ok">Synced</span> rev=4c45573 health=<span class="k">Progressing</span> | pods: 1 ContainerCreating, 3 Running
+12:48:13 (+53s)   sync=<span class="ok">Synced</span> rev=4c45573 health=<span class="k">Progressing</span> | pods: 1 <span class="bad">ErrImagePull</span>, 3 Running
+12:48:24 (+64s)   sync=<span class="ok">Synced</span> rev=4c45573 health=<span class="k">Progressing</span> | pods: 1 <span class="bad">ImagePullBackOff</span>, 3 Running
+   …              <span class="cm"># the pod alternates ErrImagePull &lt;-&gt; ImagePullBackOff (exponential back-off)</span>
+12:49:42 (+142s)  sync=<span class="ok">Synced</span> rev=4c45573 health=<span class="bad">Degraded</span>    | pods: 1 ImagePullBackOff, 3 Running
+
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod get deploy podinfo -o jsonpath='{.status.conditions}'</span>
+Available=True MinimumReplicasAvailable: Deployment has minimum availability.
+Progressing=False <span class="bad">ProgressDeadlineExceeded</span>: ReplicaSet "podinfo-585b655b77" has timed out progressing.
+
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod describe pod podinfo-585b655b77-2nmw4</span>
+Warning  Failed  kubelet  Failed to pull image "ghcr.io/stefanprodan/podinfo:6.99.0-broken": rpc error:
+         code = NotFound desc = … ghcr.io/stefanprodan/podinfo:6.99.0-broken: <span class="bad">not found</span>
+
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod exec deploy/loadgen -- curl -s http://podinfo:9898/version</span>
+{ "version": "<span class="ok">6.17.0</span>" }     <span class="cm"># the service still answers: the old pods are kept</span></pre></div>
+
+    <div class="shot"><img src="screenshots/09-s3-argocd-synced-but-degraded.png" alt="synced but degraded">
+      <div><h4>Synced ✔ but Degraded ♥̸</h4><ul>
+        <li><b>Sync = Synced</b>: the live Deployment is exactly what Git declares (tag <code>6.99.0-broken</code>). ArgoCD did its job.</li>
+        <li><b>Health = Degraded</b>: ArgoCD's health check for Deployments reads the <code>Progressing</code> condition, which became <code>ProgressDeadlineExceeded</code> after our <code>progressDeadlineSeconds: 90</code>.</li>
+        <li>Before that deadline the app is <i>Progressing</i>, because a rollout might still succeed.</li></ul></div></div>
+    <div class="shot"><img src="screenshots/10-s3-argocd-pod-errimagepull.png" alt="pod events">
+      <div><h4>Root cause, from the UI</h4><ul>
+        <li>The pod events show <code>Failed to pull image … not found</code>, then <code>ErrImagePull</code> / <code>ImagePullBackOff</code>.</li>
+        <li>So the problem is in the <b>content</b> of the commit, not in the delivery: you need monitoring of <i>health</i>, not only of sync.</li></ul></div></div>
+    <div class="shot"><img src="screenshots/11-s3-argocd-applications-degraded.png" alt="applications degraded">
+      <div><h4>No outage thanks to the rollout strategy</h4><ul>
+        <li>With <code>maxUnavailable: 0</code> Kubernetes only removes an old pod once a new one is ready. The broken pod never gets ready, so the 3 pods running 6.17.0 keep serving.</li>
+        <li>A bad commit becomes a stuck rollout instead of downtime. It still has to be detected and fixed, which is what S4 and Part B do.</li></ul></div></div>
+    <div class="tw"><table>
+      <tr><th>Status</th><th>Question it answers</th><th>Values</th><th>In S3</th></tr>
+      <tr><td>Sync status</td><td>Does the live state equal the desired state in Git?</td><td>Synced · OutOfSync · Unknown</td><td><span class="pill ok">Synced</span></td></tr>
+      <tr><td>Health status</td><td>Do the resources actually work?</td><td>Healthy · Progressing · Degraded · Suspended · Missing</td><td><span class="pill bad">Degraded</span></td></tr>
+    </table></div>
+  </section>
+
+  <!-- ===================================================== S4 -->
+  <section id="s4">
+    <h2><span class="n">S4</span>History &amp; fast rollback <small>Part A · scenario 4</small></h2>
+    <p>ArgoCD keeps the list of deployed revisions (<code>revisionHistoryLimit: 10</code>). We roll back to the last good one,
+       <code>255722f</code> (6.17.0), from the <i>History and Rollback</i> panel / CLI.</p>
+    <figure><img src="screenshots/15-s4-argocd-history-and-rollback.png" alt="history">
+      <figcaption><b>History and Rollback.</b> Each entry is a Git revision with its author, message and deployment date. Every one was <i>Initiated by: automated sync policy</i>.</figcaption></figure>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/07-scenario4-history-rollback.txt</span></div><pre><span class="p">$</span> <span class="c">argocd app history podinfo-prod</span>
+ID  DATE                           REVISION
+0   2026-11-22 12:29:21 +0100      tp4-gitops (034d275)
+1   2026-11-22 12:44:08 +0100      tp4-gitops (255722f)   <span class="cm"># S1: 6.17.0, 3 replicas  ← target</span>
+2   2026-11-22 12:48:09 +0100      tp4-gitops (4c45573)   <span class="cm"># S3: 6.99.0-broken</span>
+
+<span class="cm"># 1) rollback while automated sync is enabled</span>
+<span class="p">$</span> <span class="c">argocd app rollback podinfo-prod 1</span>
+<span class="bad">rpc error: code = FailedPrecondition desc = rollback cannot be initiated when auto-sync is enabled</span>
+
+<span class="cm"># 2) disable automated sync on podinfo-prod only</span>
+<span class="p">$</span> <span class="c">argocd app set podinfo-prod --sync-policy none</span>
+
+<span class="cm"># 3) rollback to history id 1</span>
+<span class="p">$</span> <span class="c">argocd app rollback podinfo-prod 1 --timeout 300</span>     <span class="cm"># 12:56:37 → done 12:56:38</span>
+Sync Policy:        <span class="warn">Manual</span>
+Sync Status:        <span class="warn">OutOfSync from tp4-gitops (75898f3)</span>
+Health Status:      <span class="ok">Healthy</span>
+Sync Revision:      255722f548a92fd51025a08cc6875a58045c30e1
+<span class="p">$</span> <span class="c">kubectl -n podinfo-prod get deploy podinfo -o wide</span>
+podinfo   3/3     3            3           11m   podinfo      ghcr.io/stefanprodan/podinfo:<span class="ok">6.17.0</span></pre></div>
+    <div class="shot"><img src="screenshots/16-s4-argocd-after-rollback-outofsync-healthy.png" alt="after rollback">
+      <div><h4>After the rollback: Healthy but OutOfSync</h4><ul>
+        <li><b>Healthy</b>: 3/3 pods on 6.17.0 within a second (the image was still cached).</li>
+        <li><b>OutOfSync</b>: the cluster now runs <code>255722f</code> while the branch HEAD still says <code>6.99.0-broken</code>. The rollback created a deliberate drift.</li>
+        <li>"Auto sync is not enabled". This is the impact on Auto-Sync.</li></ul></div></div>
+    <div class="note warn"><b>Impact of a rollback on Auto-Sync</b>
+      A rollback deploys an <i>older</i> revision, which contradicts Git. If auto-sync stayed on, ArgoCD would re-apply HEAD right away and
+      undo the rollback, so ArgoCD requires it to be disabled and keeps it off. A rollback is therefore an <b>emergency brake</b>, not a fix:
+      while it lasts the cluster is no longer driven by Git (our <code>ArgoCDAppOutOfSync</code> alert fired after 2 minutes, see below).
+      The permanent fix is to make Git right again (<code>git revert</code>) and then re-enable auto-sync.<br>
+      With App-of-Apps there is an extra trap: the child app's <code>syncPolicy</code> is itself declared in Git and root has
+      <code>selfHeal</code>. Without our <code>ignoreDifferences: /spec/syncPolicy</code> on root, root would turn auto-sync back on within
+      seconds. Thanks to it, <code>root</code> stayed Synced during the whole rollback.</div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/07-scenario4-history-rollback.txt (end)</span></div><pre><span class="cm"># 4) while auto-sync is off: cluster = 255722f, Git = 6.99.0-broken</span>
+ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
+
+<span class="cm"># 5) make Git the truth again, then re-enable automated sync + self-heal</span>
+<span class="p">$</span> <span class="c">git revert --no-edit 4c45573</span>
+[tp4-gitops 73ce450] Revert "TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)"
+<span class="del">-    newTag: "6.99.0-broken"</span>
+<span class="add">+    newTag: "6.17.0"</span>
+<span class="p">$</span> <span class="c">git push origin tp4-gitops</span>     <span class="cm"># 12:59:23</span>
+<span class="p">$</span> <span class="c">argocd app set podinfo-prod --sync-policy automated --self-heal --auto-prune</span>
+<span class="ok">12:59:28  podinfo-prod Synced to 73ce450</span>
+<span class="p">$</span> <span class="c">kubectl -n argocd get app podinfo-prod -o jsonpath='{.spec.syncPolicy.automated}'</span>
+{"prune":true,"selfHeal":true}</pre></div>
+    <div class="grid">
+      <figure><img src="screenshots/17-s4-argocd-history-after-rollback.png" alt="history after rollback"><figcaption><b>History after the rollback:</b> entry 3 re-deploys <code>255722f</code>.</figcaption></figure>
+      <figure><img src="screenshots/18-s4-argocd-after-git-revert-synced.png" alt="after revert"><figcaption><b>After <code>git revert</code>:</b> Synced to <code>73ce450</code>, Healthy, auto-sync back on. No new sync was needed because Git now describes what is already running.</figcaption></figure>
+    </div>
+  </section>
+
+  <!-- ===================================================== STACK -->
+  <section id="stack">
+    <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small></h2>
+    <p><b>kube-prometheus-stack</b> is deployed by the ArgoCD Application <code>monitoring-stack</code> (Helm chart pinned to 93.3.0,
+       values from our repository). Our own objects (ServiceMonitors, rules, dashboard) are a separate Application, <code>monitoring-config</code>,
+       so the stack can be upgraded independently of our configuration.</p>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>monitoring/values/kube-prometheus-stack.yaml (excerpt)</span></div><pre><span class="k">prometheus</span>:
+  prometheusSpec:
+    <span class="cm"># select EVERY ServiceMonitor / PodMonitor / PrometheusRule, not only those labelled release=kps:</span>
+    <span class="cm"># applications ship their own scrape config (podinfo's ServiceMonitor is in its base)</span>
+    serviceMonitorSelectorNilUsesHelmValues: <span class="s">false</span>
+    podMonitorSelectorNilUsesHelmValues: <span class="s">false</span>
+    ruleSelectorNilUsesHelmValues: <span class="s">false</span>
+    scrapeInterval: 15s
+    retention: 2d
+<span class="k">grafana</span>:
+  admin:
+    existingSecret: grafana-admin          <span class="cm"># created by install.sh, never committed</span>
+  sidecar:
+    dashboards: { enabled: true, label: grafana_dashboard, labelValue: "1", searchNamespace: ALL }
+<span class="cm"># minikube does not expose these components: scraping them only creates "target down" noise</span>
+<span class="k">kubeEtcd</span>: { enabled: false }   <span class="k">kubeControllerManager</span>: { enabled: false }
+<span class="k">kubeScheduler</span>: { enabled: false }   <span class="k">kubeProxy</span>: { enabled: false }</pre></div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>monitoring/config/servicemonitors-argocd.yaml (1 of 4)</span></div><pre><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: argocd-metrics, namespace: monitoring }
+<span class="k">spec</span>:
+  namespaceSelector: { matchNames: [argocd] }
+  selector:
+    matchLabels: { app.kubernetes.io/name: argocd-metrics }   <span class="cm"># application-controller :8082</span>
+  endpoints:
+    - port: metrics
+      interval: 15s
+<span class="cm"># + argocd-server-metrics (:8083), argocd-repo-server (:8084), argocd-applicationset-controller (:8080)</span></pre></div>
+    <figure><img src="screenshots/03-prometheus-targets.png" alt="targets">
+      <figcaption><b>Prometheus → Targets.</b> Every job is <i>UP</i>: the 4 ArgoCD endpoints, podinfo (2 prod + 1 dev pods), kube-state-metrics, kubelet/cAdvisor, node-exporter, apiserver, coredns, Grafana, Alertmanager and the operator.</figcaption></figure>
+
+    <h3>Key ArgoCD metrics</h3>
+    <div class="tw"><table>
+      <tr><th>Metric</th><th>Exposed by</th><th>Meaning / use</th></tr>
+      <tr><td><code>argocd_app_info</code></td><td>application-controller</td><td>Gauge always equal to 1. Its labels carry the state: <code>name</code>, <code>project</code>, <code>dest_namespace</code>, <code>sync_status</code>, <code>health_status</code>, <code>autosync_enabled</code>. This is the basis of the status panels and of 2 alerts.</td></tr>
+      <tr><td><code>argocd_app_sync_total</code></td><td>application-controller</td><td>Counter of sync operations per <code>name</code> and <code>phase</code> (Succeeded / Failed / Error). Every Git deployment, self-heal and rollback increments it.</td></tr>
+      <tr><td><code>argocd_app_reconcile_bucket</code></td><td>application-controller</td><td>Histogram of reconciliation duration (comparison of Git with the cluster).</td></tr>
+      <tr><td><code>argocd_git_request_total</code></td><td>repo-server</td><td>Calls to Git per <code>request_type</code>: <code>ls-remote</code> (polling for a new commit, every 30 s) and <code>fetch</code> (downloading a new revision).</td></tr>
+      <tr><td><code>argocd_git_request_duration_seconds</code></td><td>repo-server</td><td>Latency of those calls; it would have revealed our slow first fetch.</td></tr>
+      <tr><td><code>grpc_server_handled_total</code>, <code>argocd_redis_request_total</code></td><td>argocd-server</td><td>API / UI load and the Redis cache.</td></tr>
+    </table></div>
+  </section>
+
+  <!-- ===================================================== DASHBOARD -->
+  <section id="dash">
+    <h2><span class="n b">4</span>Unified Grafana dashboard &amp; PromQL <small>Part B · step 3</small></h2>
+    <p>The dashboard <b>"TP4 – GitOps &amp; Workloads Overview"</b> is a JSON file in Git
+       (<code>monitoring/config/dashboards/tp4-gitops-overview.json</code>). A <code>configMapGenerator</code> turns it into a ConfigMap labelled
+       <code>grafana_dashboard=1</code>, which the Grafana sidecar loads into the <i>TP4</i> folder. Editing the dashboard is a commit like any
+       other: our first fix of the status timelines (commit <a href="https://github.com/HelmiDev03/rootrt5/commit/8062f8d">8062f8d</a>) reached
+       Grafana through ArgoCD within seconds. Prometheus is the provisioned data source (<code>$datasource</code> variable), and
+       <code>$namespace</code> switches between prod and dev. Two <b>annotations</b> draw a vertical line on every panel for each
+       ArgoCD sync and each firing alert: that is how GitOps events are correlated with the curves.</p>
+    <figure><img src="screenshots/04-grafana-dashboard-initial.png" alt="dashboard initial">
+      <figcaption><b>Dashboard at the start</b> (5 apps Synced/Healthy, 2 podinfo pods on 6.16.0). Rows: ArgoCD control plane · podinfo workloads · application metrics · alerting.</figcaption></figure>
+
+    <h3>PromQL queries used</h3>
+    <div class="tw"><table>
+      <tr><th>Panel</th><th>PromQL</th></tr>
+      <tr><td>Synced / OutOfSync / Healthy / Degraded (stats)</td><td><code>count(argocd_app_info{sync_status="Synced"})</code><br><code>count(argocd_app_info{sync_status="OutOfSync"}) or vector(0)</code><br><code>count(argocd_app_info{health_status="Healthy"})</code><br><code>count(argocd_app_info{health_status=~"Degraded|Progressing"}) or vector(0)</code></td></tr>
+      <tr><td>Health status per application (state timeline)</td><td><code>(max by (name) (argocd_app_info{health_status="Healthy"}) * 0)
+ or (max by (name) (argocd_app_info{health_status="Progressing"}) * 0 + 1)
+ or (max by (name) (argocd_app_info{health_status="Degraded"}) * 0 + 2)
+ or (max by (name) (argocd_app_info{health_status=~"Missing|Unknown|Suspended"}) * 0 + 3)</code><br><span style="color:var(--muted)">The status is a label, not a value: each status gets a number, mapped to a colour (0 green, 1 blue, 2 red). The sync timeline uses the same idea.</span></td></tr>
+      <tr><td>Syncs (last 1 h) · sync history</td><td><code>round(sum(increase(argocd_app_sync_total[1h])))</code><br><code>sum by (name, phase) (increase(argocd_app_sync_total[2m]))</code></td></tr>
+      <tr><td>Git requests · reconciliation</td><td><code>sum by (request_type) (rate(argocd_git_request_total[2m]))</code><br><code>histogram_quantile(0.95, sum by (le) (rate(argocd_app_reconcile_bucket[5m])))</code></td></tr>
+      <tr><td>Pods desired / available / unavailable</td><td><code>sum(kube_deployment_spec_replicas{namespace=~"$namespace", deployment="podinfo"})</code><br><code>sum(kube_deployment_status_replicas_available{…})</code> · <code>sum(kube_deployment_status_replicas_unavailable{…})</code></td></tr>
+      <tr><td>Containers waiting (reason)</td><td><code>sum by (reason) (kube_pod_container_status_waiting_reason{namespace=~"$namespace"}) &gt; 0</code></td></tr>
+      <tr><td>Restarts</td><td><code>sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=~"$namespace"}[10m]))</code></td></tr>
+      <tr><td>CPU · memory per pod</td><td><code>sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~"$namespace", container!="", container!="POD"}[2m]))</code><br><code>sum by (pod) (container_memory_working_set_bytes{namespace=~"$namespace", container!="", container!="POD"})</code></td></tr>
+      <tr><td>Running image version</td><td><code>count by (image) (kube_pod_container_info{namespace=~"$namespace", container="podinfo"})</code></td></tr>
+      <tr><td>HTTP rate · 5xx ratio · latency</td><td><code>sum by (status) (rate(http_request_duration_seconds_count{namespace=~"$namespace", path!~"healthz|readyz"}[2m]))</code><br><code>sum(rate(…_count{…, status=~"5.."}[2m])) / sum(rate(…_count{…}[2m]))</code><br><code>histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{…}[2m])))</code><br><span style="color:var(--muted)">Kubelet probes are excluded so that the panels show real traffic.</span></td></tr>
+      <tr><td>Active alerts · annotations</td><td><code>ALERTS{alertname=~"ArgoCD.*|Pod.*|Podinfo.*"}</code><br><code>sum by (name, phase) (increase(argocd_app_sync_total[1m])) &gt; 0</code> (sync annotation)</td></tr>
+    </table></div>
+  </section>
+
+  <!-- ===================================================== ALERTING -->
+  <section id="alert">
+    <h2><span class="n b">5</span>Alerting <small>Part B · step 4</small></h2>
+    <p>The rules are a <code>PrometheusRule</code> in Git, evaluated by Prometheus every 15 s and sent to Alertmanager when firing.
+       Grafana lists them too (data-source-managed rules) with the <b>Normal / Pending / Firing</b> states.</p>
+    <div class="tw"><table>
+      <tr><th>Alert</th><th>Expression</th><th>For</th><th>Severity</th></tr>
+      <tr><td>ArgoCDAppDegraded</td><td><code>max by (name, dest_namespace) (argocd_app_info{health_status="Degraded"}) == 1</code></td><td>2m</td><td><span class="pill bad">critical</span></td></tr>
+      <tr><td>ArgoCDAppOutOfSync</td><td><code>max by (name, dest_namespace) (argocd_app_info{sync_status="OutOfSync"}) == 1</code></td><td>2m</td><td><span class="pill or">warning</span></td></tr>
+      <tr><td>ArgoCDSyncFailed</td><td><code>sum by (name) (increase(argocd_app_sync_total{phase=~"Error|Failed"}[5m])) &gt; 0</code></td><td>–</td><td><span class="pill or">warning</span></td></tr>
+      <tr><td>PodImagePullOrCrashLoop</td><td><code>max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace=~"podinfo-.*", reason=~"ErrImagePull|ImagePullBackOff|CrashLoopBackOff"}) == 1</code></td><td>1m</td><td><span class="pill bad">critical</span></td></tr>
+      <tr><td>PodinfoHighErrorRate</td><td>5xx ratio of podinfo &gt; 20 %</td><td>5m</td><td><span class="pill or">warning</span></td></tr>
+    </table></div>
+    <div class="note warn"><b>Bug found during the demo: an alert that never fires</b>
+      The first version grouped by <code>(namespace, pod, container, reason)</code>. During S3 it stayed <i>pending</i> forever: the kubelet
+      switches the pod between <code>ErrImagePull</code> and <code>ImagePullBackOff</code> every few seconds, each switch changes the
+      <code>reason</code> label, Prometheus sees a <b>new series</b> and restarts the <code>for: 1m</code> timer. The fix was to remove
+      <code>reason</code> from the result. It was shipped like everything else, through Git and ArgoCD, while the incident was still open
+      (commit <a href="https://github.com/HelmiDev03/rootrt5/commit/75898f3">75898f3</a>, <code>logs/06-alerte-fix-label-reason.txt</code>); the
+      alert fired 58 s after the new rule was loaded. Lesson: <b>never keep a flapping label in an alert with a <code>for</code> clause</b>.</div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/06-alerte-fix-label-reason.txt</span></div><pre><span class="del">-            max by (namespace, pod, container, reason) (</span>
+<span class="add">+            max by (namespace, pod, container) (</span>
+<span class="p">$</span> <span class="c">git push origin tp4-gitops</span>     <span class="cm"># 12:50:50</span>
+12:51:40  monitoring-config synced to 75898f3 (PrometheusRule updated, operator reloads Prometheus)
+12:51:41  ArgoCDAppDegraded=<span class="warn">pending</span>  PodImagePullOrCrashLoop=<span class="warn">pending</span>
+12:51:56  ArgoCDAppDegraded=<span class="bad">firing</span>   PodImagePullOrCrashLoop=<span class="warn">pending</span>
+12:52:38  ArgoCDAppDegraded=<span class="bad">firing</span>   PodImagePullOrCrashLoop=<span class="bad">firing</span></pre></div>
+    <div class="grid">
+      <figure><img src="screenshots/13-s3-prometheus-alerts-firing.png" alt="prometheus alerts"><figcaption><b>Prometheus → Alerts</b> (filter: firing): our groups <code>tp4.argocd</code> and <code>tp4.workloads</code> each have one firing alert. <i>Watchdog</i> always fires on purpose (dead-man's switch). <i>CPUThrottlingHigh</i> comes from the 50m CPU limit of the load generator.</figcaption></figure>
+      <figure><img src="screenshots/14-s3-grafana-alert-rules-firing.png" alt="grafana alert rules"><figcaption><b>Grafana → Alerting → Alert rules</b>, the same Prometheus rules seen from Grafana, in state <b>Firing</b>.</figcaption></figure>
+    </div>
+    <figure><img src="screenshots/12-s3-grafana-dashboard-incident.png" alt="dashboard during S3">
+      <figcaption><b>Dashboard during the S3 incident.</b> podinfo-prod turns blue (Progressing) then red (Degraded) while its sync stays green.
+        <i>Running image version</i> shows one <code>6.99.0-broken</code> container next to the 3 on 6.17.0. <i>Containers waiting</i> shows
+        ErrImagePull / ImagePullBackOff, and unavailable = 1. The purple lines are the ArgoCD sync annotations; the table at the bottom lists both alerts as firing.</figcaption></figure>
+  </section>
+
+  <!-- ===================================================== S5 -->
+  <section id="s5">
+    <h2><span class="n b">S5</span>Correlation: GitOps, metrics &amp; alerting <small>Part B · scenario 5</small></h2>
+    <p>Three commits, observed only through Prometheus (sampled every 10 s) and Grafana: <b>(1)</b> scale up 3 → 5 replicas,
+       <b>(2)</b> re-inject the broken tag, <b>(3)</b> fix it with <code>git revert</code>. This time no ArgoCD rollback: the
+       incident is solved <b>through GitOps only</b>.</p>
+    <div class="flow"><span>13:00:23 push 3→5 replicas</span><em>→</em><span>13:01:21 5/5 available</span><em>→</em><span class="o">13:01:21 push 6.99.0-broken</span><em>→</em><span class="r">13:03:57 PodImagePull… Firing</span><em>→</em><span class="r">13:06:29 ArgoCDAppDegraded Firing</span><em>→</em><span>13:06:56 git revert</span><em>→</em><span>13:08:04 all alerts Normal</span></div>
+<div class="term"><div class="term-bar"><i></i><i></i><i></i><span>logs/08-scenario5-correlation-alerting.txt</span></div><pre><span class="hd">### t0 - initial state</span>
+13:00:22  <span class="ok">Synced/Healthy</span>         desired=3  available=3  unavailable=0  syncs=7   alerts: none
+
+<span class="hd">### Step 1 - scale up through Git: 3 -&gt; 5 replicas</span>                                  <span class="cm"># commit 2d87a01</span>
+<span class="del">-    count: 3</span>
+<span class="add">+    count: 5</span>
+<span class="p">$</span> <span class="c">git commit -qam 'TP4 scenario 5: scale prod podinfo 3 -&gt; 5 replicas' &amp;&amp; git push</span>   <span class="cm"># 13:00:23</span>
+13:01:10  Synced/<span class="k">Progressing</span>     desired=3  available=3  unavailable=0  syncs=7   alerts: none
+13:01:21  <span class="ok">Synced/Healthy</span>         desired=<span class="ok">5</span>  available=<span class="ok">5</span>  unavailable=0  syncs=7   alerts: none
+
+<span class="hd">### Step 2 - re-inject the faulty image tag through Git</span>                             <span class="cm"># commit 155af2e</span>
+<span class="del">-    newTag: "6.17.0"</span>
+<span class="add">+    newTag: "6.99.0-broken"</span>
+<span class="p">$</span> <span class="c">git commit -qam 'TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken' &amp;&amp; git push</span>   <span class="cm"># 13:01:21</span>
+13:02:40  Synced/<span class="k">Progressing</span>     desired=5  available=5  unavailable=0  syncs=8   alerts: none
+13:02:51  Synced/<span class="k">Progressing</span>     desired=5  available=5  unavailable=<span class="bad">1</span>  syncs=8   alerts: PodImagePullOrCrashLoop=<span class="warn">pending</span>
+13:03:57  Synced/<span class="k">Progressing</span>     desired=5  available=5  unavailable=<span class="bad">1</span>  syncs=9   alerts: PodImagePullOrCrashLoop=<span class="bad">firing</span>
+13:04:18  Synced/<span class="bad">Degraded</span>        desired=5  available=5  unavailable=<span class="bad">1</span>  syncs=9   alerts: PodImagePullOrCrashLoop=<span class="bad">firing</span>
+13:04:29  Synced/<span class="bad">Degraded</span>        …                                               ArgoCDAppDegraded=<span class="warn">pending</span> PodImagePullOrCrashLoop=<span class="bad">firing</span>
+13:06:29  Synced/<span class="bad">Degraded</span>        …                                               ArgoCDAppDegraded=<span class="bad">firing</span>  PodImagePullOrCrashLoop=<span class="bad">firing</span>
+
+<span class="hd">### Step 3 - resolve through GitOps: git revert of the faulty commit</span>               <span class="cm"># commit b1cfa4d</span>
+<span class="p">$</span> <span class="c">git revert --no-edit 155af2e &amp;&amp; git push origin tp4-gitops</span>     <span class="cm"># 13:06:56</span>
+13:07:43  <span class="warn">OutOfSync</span>/<span class="bad">Degraded</span>     desired=5  available=5  unavailable=1  syncs=9   alerts: ArgoCDAppDegraded=firing PodImagePullOrCrashLoop=firing
+13:07:54  <span class="ok">Synced/Healthy</span>         desired=5  available=5  unavailable=<span class="ok">0</span>  syncs=10  alerts: ArgoCDAppDegraded=firing
+13:08:04  <span class="ok">Synced/Healthy</span>         desired=5  available=5  unavailable=<span class="ok">0</span>  syncs=10  alerts: <span class="ok">none</span></pre></div>
+    <div class="note info"><b>Reading the timeline</b>
+      <ul class="tight">
+        <li><b>Desired</b> follows Git (3 → 5) as soon as ArgoCD syncs, and <b>available</b> catches up when the new pods pass their readiness probe (11 s).</li>
+        <li>The <b>sync counter</b> (<code>argocd_app_sync_total</code>) goes up by one per commit: 7 → 8 → 9 → 10.</li>
+        <li><code>PodImagePullOrCrashLoop</code> fires first, after 1 min of ErrImagePull (≈ 2 min 36 s after the push). <code>ArgoCDAppDegraded</code> follows: 90 s progress deadline + 2 min <code>for</code>. Two alerts, two levels: the pod (cause) and the delivery (impact on the application).</li>
+        <li>Resolution through Git only: 58 s after the revert the broken pod is gone (unavailable = 0, Healthy) and both alerts are resolved 10 s later. In Grafana the rules return to <b>Normal</b>.</li>
+      </ul></div>
+    <figure><img src="screenshots/19-s5-grafana-dashboard-firing.png" alt="dashboard firing">
+      <figcaption><b>Dashboard at 13:06:29, both alerts firing.</b> Pods desired = available = 5 with 1 unavailable, the <code>6.99.0-broken</code> image next to 5 × 6.17.0, podinfo-prod red in the health timeline but green in the sync timeline, and the alert table and annotations in red.</figcaption></figure>
+    <div class="grid">
+      <figure><img src="screenshots/20-s5-grafana-alert-rules-firing.png" alt="alert rules firing"><figcaption><b>Grafana Alerting, during the incident:</b> <code>ArgoCDAppDegraded</code> and <code>PodImagePullOrCrashLoop</code> are <b>Firing</b>.</figcaption></figure>
+      <figure><img src="screenshots/22-s5-grafana-alert-rules-normal.png" alt="alert rules normal"><figcaption><b>After <code>git revert</code>:</b> the 5 TP4 rules (groups <code>tp4.argocd</code>, <code>tp4.workloads</code>) are back to <b>Normal</b>.</figcaption></figure>
+    </div>
+    <figure><img src="screenshots/21-s5-grafana-dashboard-resolved.png" alt="dashboard resolved">
+      <figcaption><b>The whole session on one screen (last 20 min).</b> Two red Degraded bands on podinfo-prod (S3 and S5) and the orange OutOfSync band of the S4 rollback.
+        The pods panel shows 4 → 3 (rollback) and 5 → 6 → 5 (scale-up, then the extra broken pod). The image panel shows the broken tag appearing and disappearing, and there are 11 syncs in the last hour.
+        Every change lines up with a purple sync annotation, so each curve can be traced back to the Git commit that caused it.</figcaption></figure>
+    <figure><img src="screenshots/23-final-argocd-applications.png" alt="final state">
+      <figcaption><b>Final state:</b> the 5 applications Synced &amp; Healthy on the last commit of <code>tp4-gitops</code> (podinfo-prod: 6.17.0, 5 replicas).</figcaption></figure>
+  </section>
+
+  <!-- ===================================================== REVIEW -->
+  <section id="review">
+    <h2><span class="n">⚖</span>Engineering review: security, good practices, limits</h2>
+    <h3>Security</h3>
+    <ul class="tight">
+      <li><b>Pull model</b>: no CI job and no laptop needs cluster credentials to deploy. Only ArgoCD, inside the cluster, can change it, and Git is the only input. The attack surface becomes write access to the branch, which should be protected (required reviews, signed commits: ArgoCD can verify GPG signatures per project).</li>
+      <li><b>No secret in Git</b>: the Grafana password is created by the bootstrap in a Secret and referenced with <code>existingSecret</code>. In production we would use <i>Sealed Secrets</i>, <i>SOPS</i> or <i>External Secrets</i> so that secrets are versioned too, but encrypted.</li>
+      <li><b>Least privilege</b>: AppProject <code>tp4</code> limits repos, destination namespaces and cluster-scoped kinds. A wrong <code>destination</code> in a manifest is rejected instead of deploying anywhere.</li>
+      <li><b>Hardened workload</b>: non-root UID, <code>readOnlyRootFilesystem</code>, all capabilities dropped, <code>seccompProfile: RuntimeDefault</code>, requests/limits, liveness and readiness probes.</li>
+      <li><b>Pinned versions</b>: ArgoCD <code>v3.6.2</code>, chart <code>93.3.0</code>, image tags, never <code>latest</code>. A deployment is reproducible and an upgrade is a visible diff.</li>
+      <li>To do for real use: rotate / delete <code>argocd-initial-admin-secret</code> and use SSO (Dex/OIDC) with RBAC; expose the UIs behind an Ingress with TLS instead of port-forwards; configure Alertmanager receivers (mail/Slack). Ours only collects alerts.</li>
+    </ul>
+    <h3>Trade-offs and limits observed</h3>
+    <ul class="tight">
+      <li><b>Polling latency</b>: 55 s from push to sync, because GitHub cannot reach a local cluster for a webhook. We lowered the poll to 30 s, but polling costs Git calls (visible in the <code>ls-remote</code> panel). On a reachable cluster, a GitHub webhook makes it near-instant.</li>
+      <li><b>Self-heal also erases legitimate hotfixes</b>: that is the point, but the team must accept "commit first". Fields managed by other controllers (an HPA's <code>replicas</code>, for example) must be listed in <code>ignoreDifferences</code>, or ArgoCD and the HPA fight each other.</li>
+      <li><b>ArgoCD validates delivery, not the content</b>: S3 was "Synced" with a non-existent image. A CI step before merge (kustomize build, kubeconform, check that the image tag exists) or progressive delivery (Argo Rollouts canary with metric analysis) would catch it earlier. Health-based alerts are the last safety net.</li>
+      <li><b>Rollback vs revert</b>: the UI rollback is fast (1 s) but leaves the app OutOfSync and auto-sync disabled. <code>git revert</code> keeps Git as the truth and the audit trail; it was just as fast here (the cluster converged 5 s after the push).</li>
+      <li><b>Mono-repo shared with the site</b>: the first clone pulls the whole course repository (~13 MB), hence the timeout we had to raise. A dedicated manifests repository (or ArgoCD sparse/shallow fetch) is lighter. We used a dedicated branch to keep the demo commits off <code>main</code>.</li>
+      <li>Single-node minikube: no high availability for ArgoCD, Prometheus or the apps. Alert noise: <i>CPUThrottlingHigh</i> on the load generator's 50m limit, which is harmless but should be tuned.</li>
+    </ul>
+  </section>
+
+  <section id="retenir">
+    <h2><span class="n">★</span>Key takeaways</h2>
+    <div class="takeaways">
+      <div><b>Single source of truth</b>The whole platform (apps, ArgoCD projects, Prometheus stack, alerts, dashboards) is in Git. The cluster can be rebuilt with <code>install.sh</code>, and everything after it is pulled.</div>
+      <div><b>Pull-based CD</b>A commit reaches production in about a minute with no deploy command, and every change has an author and a message.</div>
+      <div><b>Drift &amp; self-healing</b>Manual changes are reverted in about a second. The only lasting way to change production is a commit.</div>
+      <div><b>Sync ≠ Health</b>Synced means "as written in Git", Healthy means "it works". A wrong commit can be perfectly synced and still broken.</div>
+      <div><b>Rollback vs revert</b>A rollback is an emergency brake that suspends auto-sync; the real fix is a commit (revert) that makes Git right again.</div>
+      <div><b>Observability closes the loop</b>Prometheus scrapes ArgoCD and the workloads; Grafana annotations link each sync to the curves; alerts fire on Degraded / ImagePullBackOff and clear after the GitOps fix.</div>
+    </div>
+  </section>
+
+  <footer>TP4 · GitOps, ArgoCD &amp; Observability · RT5 INSAT · 2026</footer>
+  </main>
+  </div>
+</div>
+
+<div id="lb"><img alt=""></div>
+<script>
+(function(){
+  const lb = document.getElementById('lb'), lbi = lb.querySelector('img');
+  document.querySelectorAll('figure img, .shot img').forEach(i => i.addEventListener('click', () => { lbi.src = i.src; lb.classList.add('on'); }));
+  lb.addEventListener('click', () => lb.classList.remove('on'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('on'); });
+  const links = [...document.querySelectorAll('.toc a:not(.top)')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href')));
+  function spy() {
+    let cur = 0;
+    secs.forEach((sec, i) => { if (sec && sec.getBoundingClientRect().top < innerHeight * 0.45) cur = i; });
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = secs.length - 1;
+    links.forEach((a, i) => a.classList.toggle('on', i === cur));
+  }
+  addEventListener('scroll', spy, { passive:true }); addEventListener('resize', spy); spy();
+  // Follows the RT5 site's light/dark switch (storage event) and the system setting.
+  addEventListener('storage', e => { if (e.key === 'theme') applyTheme(); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+  window.addEventListener('beforeprint', () => document.querySelectorAll('details').forEach(d => d.open = true));
+})();
+</script>
+</body>
+</html>

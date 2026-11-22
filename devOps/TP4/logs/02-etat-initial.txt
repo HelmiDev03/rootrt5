@@ -1,0 +1,97 @@
+$ apps
+NAME                SYNC     HEALTH    REVISION
+monitoring-config   Synced   Healthy   77900de7e796212137299992dd5ab327be2ba6a3
+monitoring-stack    Synced   Healthy   <none>
+podinfo-dev         Synced   Healthy   77900de7e796212137299992dd5ab327be2ba6a3
+podinfo-prod        Synced   Healthy   77900de7e796212137299992dd5ab327be2ba6a3
+root                Synced   Healthy   77900de7e796212137299992dd5ab327be2ba6a3
+
+$ kubectl get pods -n argocd
+NAME                                                READY   STATUS    RESTARTS   AGE
+argocd-application-controller-0                     1/1     Running   0          11m
+argocd-applicationset-controller-84c8b8bcf7-d2vxq   1/1     Running   0          19m
+argocd-dex-server-794bb66bd8-xktnp                  1/1     Running   0          19m
+argocd-notifications-controller-f67686d85-2fbm5     1/1     Running   0          19m
+argocd-redis-5c6d849576-pvd7h                       1/1     Running   0          19m
+argocd-repo-server-5459fb48f5-jm44j                 1/1     Running   0          11m
+argocd-server-f458774c5-6vlbf                       1/1     Running   0          11m
+
+$ kubectl get pods -n monitoring
+NAME                                                    READY   STATUS      RESTARTS   AGE
+alertmanager-kps-kube-prometheus-stack-alertmanager-0   2/2     Running     0          8m37s
+kps-grafana-5cd585b49-t4ghz                             3/3     Running     0          9m51s
+kps-kube-prometheus-stack-admission-create-drkp4        0/1     Completed   0          37s
+kps-kube-prometheus-stack-admission-patch-c98jr         0/1     Completed   0          9s
+kps-kube-prometheus-stack-operator-6994d58c4f-6gmbd     1/1     Running     0          9m50s
+kps-kube-state-metrics-6b8b46796b-kc8g6                 1/1     Running     0          9m51s
+kps-prometheus-node-exporter-z82fv                      1/1     Running     0          9m51s
+prometheus-kps-kube-prometheus-stack-prometheus-0       2/2     Running     0          8m37s
+
+$ kubectl get all -n podinfo-prod
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/loadgen-8569864578-58fsw   1/1     Running   0          11m
+pod/podinfo-5cfd7c7464-kh86v   1/1     Running   0          11m
+pod/podinfo-5cfd7c7464-zx7lz   1/1     Running   0          11m
+
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+service/podinfo   ClusterIP   10.96.224.175   <none>        9898/TCP,9797/TCP   11m
+
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/loadgen   1/1     1            1           11m
+deployment.apps/podinfo   2/2     2            2           11m
+
+NAME                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/loadgen-8569864578   1         1         1       11m
+replicaset.apps/podinfo-5cfd7c7464   2         2         2       11m
+
+$ kubectl get servicemonitors,prometheusrules -A
+NAMESPACE      NAME                                                                            AGE
+monitoring     servicemonitor.monitoring.coreos.com/argocd-applicationset-controller-metrics   8m58s
+monitoring     servicemonitor.monitoring.coreos.com/argocd-metrics                             8m58s
+monitoring     servicemonitor.monitoring.coreos.com/argocd-repo-server-metrics                 8m58s
+monitoring     servicemonitor.monitoring.coreos.com/argocd-server-metrics                      8m58s
+monitoring     servicemonitor.monitoring.coreos.com/kps-grafana                                9m50s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-alertmanager     9m50s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-apiserver        9m49s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-coredns          9m49s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-kubelet          9m48s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-operator         9m47s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-prometheus-stack-prometheus       9m47s
+monitoring     servicemonitor.monitoring.coreos.com/kps-kube-state-metrics                     9m46s
+monitoring     servicemonitor.monitoring.coreos.com/kps-prometheus-node-exporter               9m46s
+podinfo-dev    servicemonitor.monitoring.coreos.com/podinfo                                    9m18s
+podinfo-prod   servicemonitor.monitoring.coreos.com/podinfo                                    9m18s
+
+NAMESPACE    NAME                                                                                                   AGE
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-alertmanager.rules                      9m49s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-config-reloaders                        9m49s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-general.rules                           9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-cpu-usage-seconds   9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-memory-cache        9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-memory-rss          9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-memory-swap         9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-memory-working-se   9m49s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.container-resource            9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-k8s.rules.pod-owner                     9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-apiserver-availability.rules       9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-apiserver-burnrate.rules           9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-apiserver-histogram.rules          9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-apiserver-slos                     9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-prometheus-general.rules           9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-prometheus-node-recording.rules    9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kube-state-metrics                      9m48s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubelet.rules                           9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-apps                         9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-resources                    9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-storage                      9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-system                       9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-system-apiserver             9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-kubernetes-system-kubelet               9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-node-exporter                           9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-node-exporter.rules                     9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-node-network                            9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-node.rules                              9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-prometheus                              9m47s
+monitoring   prometheusrule.monitoring.coreos.com/kps-kube-prometheus-stack-prometheus-operator                     9m46s
+monitoring   prometheusrule.monitoring.coreos.com/tp4-gitops-alerts                                                 8m58s
+
