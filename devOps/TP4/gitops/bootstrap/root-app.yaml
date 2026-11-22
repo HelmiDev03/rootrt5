@@ -1,0 +1,32 @@
+# App-of-Apps: the only Application created by hand. It syncs the apps/ folder,
+# which declares every other Application (workloads + monitoring) and the AppProject.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/HelmiDev03/rootrt5.git
+    targetRevision: tp4-gitops
+    path: devOps/TP4/gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+  # The sync policy of the child Applications may be switched off by an operator during an
+  # incident (an ArgoCD rollback requires auto-sync to be disabled). Without this, the root
+  # app would self-heal it back immediately and the rollback would be impossible.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /spec/syncPolicy

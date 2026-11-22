@@ -1,0 +1,19 @@
+# The application ships its own scrape config: Prometheus (operator) picks it up
+# because the stack is configured to select every ServiceMonitor of the cluster.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo
+  labels:
+    app.kubernetes.io/name: podinfo
+  annotations:
+    # The CRD comes with kube-prometheus-stack: do not fail the dry-run if it is not there yet.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 15s

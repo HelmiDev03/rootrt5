@@ -1,0 +1,39 @@
+$ apps
+NAME                SYNC     HEALTH    REVISION
+monitoring-config   Synced   Healthy   b1cfa4d0c7b9da0ca7b506e9de32bef47fd9c116
+monitoring-stack    Synced   Healthy   <none>
+podinfo-dev         Synced   Healthy   b1cfa4d0c7b9da0ca7b506e9de32bef47fd9c116
+podinfo-prod        Synced   Healthy   b1cfa4d0c7b9da0ca7b506e9de32bef47fd9c116
+root                Synced   Healthy   b1cfa4d0c7b9da0ca7b506e9de32bef47fd9c116
+
+$ git log --format='%h %ad %s' --date=format:'%H:%M:%S' main..tp4-gitops
+b1cfa4d 13:06:56 Revert "TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken"
+155af2e 13:01:21 TP4 scenario 5: re-inject the non-existent tag 6.99.0-broken
+2d87a01 13:00:23 TP4 scenario 5: scale prod podinfo 3 -> 5 replicas
+73ce450 12:59:23 Revert "TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)"
+75898f3 12:50:50 TP4: PodImagePullOrCrashLoop - drop the flapping reason label from the alert series
+4c45573 12:47:20 TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)
+255722f 12:43:13 TP4 scenario 1: prod podinfo 6.16.0 -> 6.17.0, 2 -> 3 replicas
+8062f8d 12:41:57 TP4: dashboard - colour thresholds on status timelines, exclude probes from HTTP panels
+77900de 12:28:56 TP4: raise ArgoCD repo-server timeouts for the first clone on a slow link
+034d275 12:08:49 TP4: GitOps manifests (ArgoCD App-of-Apps, podinfo Kustomize overlays, kube-prometheus-stack)
+
+$ kubectl -n podinfo-prod get deploy podinfo -o wide | cut -c1-120
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                                SELECTOR
+podinfo   5/5     5            5           24m   podinfo      ghcr.io/stefanprodan/podinfo:6.17.0   app.kubernetes.io/na
+
+$ kubectl -n argocd get app podinfo-prod -o jsonpath='{range .status.history[*]}{.id}{"  "}{.revision}{"  "}{.deployedAt}{"\n"}{end}'
+0  034d275c3eac77fcbf1de3d42163e25e22e18485  2026-11-22T11:29:21Z
+1  255722f548a92fd51025a08cc6875a58045c30e1  2026-11-22T11:44:08Z
+2  4c45573a1457cf691e7cae018f25472487d61a3c  2026-11-22T11:48:09Z
+3  255722f548a92fd51025a08cc6875a58045c30e1  2026-11-22T11:56:38Z
+4  2d87a01a5196aad26646f0068a31665872c62047  2026-11-22T12:01:08Z
+5  155af2ed16071adc24a6da905e16101c6609d2ea  2026-11-22T12:02:39Z
+6  b1cfa4d0c7b9da0ca7b506e9de32bef47fd9c116  2026-11-22T12:07:42Z
+
+$ curl -s localhost:9090/api/v1/query --data-urlencode 'query=sum by (name, phase) (argocd_app_sync_total)' | node -e 'for(const r of JSON.parse(require("fs").readFileSync(0)).data.result) console.log(r.metric.name.padEnd(18), r.metric.phase, r.value[1])'
+monitoring-config  Succeeded 3
+podinfo-dev        Succeeded 1
+podinfo-prod       Succeeded 10
+monitoring-stack   Succeeded 1
+

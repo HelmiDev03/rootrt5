@@ -1,0 +1,42 @@
+# kube-prometheus-stack (Prometheus Operator, Prometheus, Alertmanager, Grafana,
+# kube-state-metrics, node-exporter) installed from the upstream Helm chart, with the
+# values kept in this repository (multi-source Application, "$values" reference).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: tp4
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 93.3.0
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/devOps/TP4/gitops/monitoring/values/kube-prometheus-stack.yaml
+    - repoURL: https://github.com/HelmiDev03/rootrt5.git
+      targetRevision: tp4-gitops
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The operator CRDs are larger than the 256 KB limit of client-side apply.
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

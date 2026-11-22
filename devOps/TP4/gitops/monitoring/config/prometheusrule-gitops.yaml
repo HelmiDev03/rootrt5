@@ -1,0 +1,63 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tp4-gitops-alerts
+  labels:
+    app.kubernetes.io/part-of: tp4-gitops
+spec:
+  groups:
+    - name: tp4.argocd
+      rules:
+        - alert: ArgoCDAppDegraded
+          # argocd_app_info always equals 1; its labels carry the current status.
+          expr: max by (name, dest_namespace) (argocd_app_info{health_status="Degraded"}) == 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ArgoCD application {{ $labels.name }} is Degraded"
+            description: "{{ $labels.name }} (namespace {{ $labels.dest_namespace }}) has been Degraded for more than 2 minutes. The manifests may be in sync with Git while the pods are failing."
+        - alert: ArgoCDAppOutOfSync
+          expr: max by (name, dest_namespace) (argocd_app_info{sync_status="OutOfSync"}) == 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD application {{ $labels.name }} is OutOfSync"
+            description: "The live state of {{ $labels.name }} has differed from Git for more than 2 minutes (auto-sync disabled, sync error or manual rollback)."
+        - alert: ArgoCDSyncFailed
+          expr: sum by (name) (increase(argocd_app_sync_total{phase=~"Error|Failed"}[5m])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "Sync of {{ $labels.name }} failed"
+            description: "At least one sync operation of {{ $labels.name }} ended in Error/Failed during the last 5 minutes."
+    - name: tp4.workloads
+      rules:
+        - alert: PodImagePullOrCrashLoop
+          # Do NOT keep "reason" in the result: kubelet alternates ErrImagePull <-> ImagePullBackOff
+          # every few seconds, each flip would create a new series and restart the "for" timer.
+          expr: |
+            max by (namespace, pod, container) (
+              kube_pod_container_status_waiting_reason{
+                namespace=~"podinfo-.*",
+                reason=~"ErrImagePull|ImagePullBackOff|CrashLoopBackOff"
+              }
+            ) == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} cannot start (image pull error or crash loop)"
+            description: "Container {{ $labels.container }} has been waiting in ErrImagePull, ImagePullBackOff or CrashLoopBackOff for more than 1 minute."
+        - alert: PodinfoHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_request_duration_seconds_count{namespace=~"podinfo-.*", status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_request_duration_seconds_count{namespace=~"podinfo-.*"}[5m]))
+              > 0.2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "More than 20% of the requests to podinfo fail in {{ $labels.namespace }}"

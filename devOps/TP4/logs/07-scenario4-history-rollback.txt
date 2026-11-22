@@ -1,0 +1,169 @@
+$ argocd version --short 2>/dev/null | head -2
+argocd: v3.6.2+8e8268e
+argocd-server: v3.6.2
+
+$ argocd app history podinfo-prod
+SOURCE  https://github.com/HelmiDev03/rootrt5.git
+ID      DATE                           REVISION
+0       2026-11-22 12:29:21 +0100 WAT  tp4-gitops (034d275)
+1       2026-11-22 12:44:08 +0100 WAT  tp4-gitops (255722f)
+2       2026-11-22 12:48:09 +0100 WAT  tp4-gitops (4c45573)
+
+# 1) Rollback while automated sync is enabled
+$ argocd app rollback podinfo-prod 1
+{"level":"fatal","msg":"rpc error: code = FailedPrecondition desc = rollback cannot be initiated when auto-sync is enabled","time":"2026-11-22T12:56:35+01:00"}
+
+# 2) Disable automated sync on podinfo-prod only (root ignores /spec/syncPolicy of child apps, so it does not undo this)
+$ argocd app set podinfo-prod --sync-policy none
+
+$ argocd app get podinfo-prod -o json | node -e 'const a=JSON.parse(require("fs").readFileSync(0));console.log("syncPolicy:",JSON.stringify(a.spec.syncPolicy))'
+syncPolicy: {"syncOptions":["CreateNamespace=true"],"retry":{"limit":5,"backoff":{"duration":"10s","factor":2,"maxDuration":"3m"}}}
+
+# 3) Rollback to history id 1 = revision 255722f (podinfo 6.17.0, 3 replicas)     # 12:56:37
+$ argocd app rollback podinfo-prod 1 --timeout 300
+TIMESTAMP                  GROUP                        KIND       NAMESPACE                    NAME    STATUS   HEALTH         HOOK  MESSAGE
+2026-11-22T12:56:37+01:00                            Service      podinfo-prod               podinfo    Synced  Healthy               
+2026-11-22T12:56:37+01:00   apps                  Deployment      podinfo-prod               loadgen    Synced  Healthy               
+2026-11-22T12:56:37+01:00   apps                  Deployment      podinfo-prod               podinfo    Synced  Degraded              
+2026-11-22T12:56:37+01:00  monitoring.coreos.com  ServiceMonitor  podinfo-prod               podinfo    Synced                        
+2026-11-22T12:56:38+01:00   apps  Deployment  podinfo-prod               podinfo    Synced  Progressing              
+2026-11-22T12:56:38+01:00  monitoring.coreos.com  ServiceMonitor  podinfo-prod               podinfo    Synced                           servicemonitor.monitoring.coreos.com/podinfo unchanged
+2026-11-22T12:56:38+01:00                            Service      podinfo-prod               podinfo    Synced  Healthy                  service/podinfo unchanged
+2026-11-22T12:56:38+01:00   apps                  Deployment      podinfo-prod               loadgen    Synced  Healthy                  deployment.apps/loadgen unchanged
+2026-11-22T12:56:38+01:00   apps                  Deployment      podinfo-prod               podinfo    Synced  Progressing              deployment.apps/podinfo configured
+2026-11-22T12:56:38+01:00   apps  Deployment  podinfo-prod               podinfo  OutOfSync  Progressing              deployment.apps/podinfo configured
+
+Name:               argocd/podinfo-prod
+Project:            tp4
+Server:             https://kubernetes.default.svc
+Namespace:          podinfo-prod
+URL:                https://localhost:8080/applications/argocd/podinfo-prod
+Source:
+- Repo:             https://github.com/HelmiDev03/rootrt5.git
+  Target:           tp4-gitops
+  Path:             devOps/TP4/gitops/workloads/podinfo/overlays/prod
+SyncWindow:         Sync Allowed
+Sync Policy:        Manual
+Sync Status:        OutOfSync from tp4-gitops (75898f3)
+Health Status:      Healthy
+
+Operation:          Sync
+Sync Revision:      255722f548a92fd51025a08cc6875a58045c30e1
+Phase:              Succeeded
+Start:              2026-11-22 12:56:37 +0100 WAT
+Finished:           2026-11-22 12:56:38 +0100 WAT
+Duration:           1s
+Message:            successfully synced (all tasks run)
+
+GROUP                  KIND            NAMESPACE     NAME     STATUS     HEALTH   HOOK  MESSAGE
+                       Service         podinfo-prod  podinfo  Synced     Healthy        service/podinfo unchanged
+apps                   Deployment      podinfo-prod  loadgen  Synced     Healthy        deployment.apps/loadgen unchanged
+apps                   Deployment      podinfo-prod  podinfo  OutOfSync  Healthy        deployment.apps/podinfo configured
+monitoring.coreos.com  ServiceMonitor  podinfo-prod  podinfo  Synced                    servicemonitor.monitoring.coreos.com/podinfo unchanged
+
+$ apps
+NAME                SYNC        HEALTH    REVISION
+monitoring-config   Synced      Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+monitoring-stack    Synced      Healthy   <none>
+podinfo-dev         Synced      Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+podinfo-prod        OutOfSync   Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+root                Synced      Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+
+$ kubectl -n podinfo-prod get deploy,pods -l app.kubernetes.io/name=podinfo -o wide | cut -c1-150
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                                SELECTOR
+deployment.apps/podinfo   3/3     3            3           11m   podinfo      ghcr.io/stefanprodan/podinfo:6.17.0   app.kubernetes.io/name=podinfo
+
+NAME                           READY   STATUS    RESTARTS   AGE   IP            NODE   NOMINATED NODE   READINESS GATES
+pod/podinfo-7dfdf7f5c7-r4hxq   1/1     Running   0          11m   10.244.0.32   tp4    <none>           <none>
+pod/podinfo-7dfdf7f5c7-wgshz   1/1     Running   0          11m   10.244.0.34   tp4    <none>           <none>
+pod/podinfo-7dfdf7f5c7-wnwzk   1/1     Running   0          11m   10.244.0.33   tp4    <none>           <none>
+
+$ kubectl -n podinfo-prod exec deploy/loadgen -- curl -s http://podinfo:9898/version
+{
+  "commit": "fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+  "version": "6.17.0"
+}
+$ argocd app get podinfo-prod | sed -n '1,22p'
+Name:               argocd/podinfo-prod
+Project:            tp4
+Server:             https://kubernetes.default.svc
+Namespace:          podinfo-prod
+URL:                https://localhost:8080/applications/podinfo-prod
+Source:
+- Repo:             https://github.com/HelmiDev03/rootrt5.git
+  Target:           tp4-gitops
+  Path:             devOps/TP4/gitops/workloads/podinfo/overlays/prod
+SyncWindow:         Sync Allowed
+Sync Policy:        Manual
+Sync Status:        OutOfSync from tp4-gitops (75898f3)
+Health Status:      Healthy
+
+GROUP                  KIND            NAMESPACE     NAME     STATUS     HEALTH   HOOK  MESSAGE
+                       Service         podinfo-prod  podinfo  Synced     Healthy        service/podinfo unchanged
+apps                   Deployment      podinfo-prod  loadgen  Synced     Healthy        deployment.apps/loadgen unchanged
+apps                   Deployment      podinfo-prod  podinfo  OutOfSync  Healthy        deployment.apps/podinfo configured
+monitoring.coreos.com  ServiceMonitor  podinfo-prod  podinfo  Synced                    servicemonitor.monitoring.coreos.com/podinfo unchanged
+
+$ argocd app history podinfo-prod
+SOURCE  https://github.com/HelmiDev03/rootrt5.git
+ID      DATE                           REVISION
+0       2026-11-22 12:29:21 +0100 WAT  tp4-gitops (034d275)
+1       2026-11-22 12:44:08 +0100 WAT  tp4-gitops (255722f)
+2       2026-11-22 12:48:09 +0100 WAT  tp4-gitops (4c45573)
+3       2026-11-22 12:56:38 +0100 WAT  tp4-gitops (255722f)
+
+# 4) While auto-sync is off the cluster runs 255722f but Git still says 6.99.0-broken -> alert ArgoCDAppOutOfSync
+$ curl -s localhost:9090/api/v1/alerts | node -e 'for(const a of JSON.parse(require("fs").readFileSync(0)).data.alerts) if(/^(ArgoCD|Pod)/.test(a.labels.alertname)) console.log(a.labels.alertname, a.state, "since", a.activeAt.slice(11,19), "UTC")'
+ArgoCDAppOutOfSync firing since 11:56:56 UTC
+
+# 5) Make Git the truth again: revert the faulty commit, then re-enable automated sync + self-heal
+$ git revert --no-edit 4c45573 && git log --oneline -3
+[tp4-gitops 73ce450] Revert "TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)"
+ Date: Sun Nov 22 12:59:23 2026 +0100
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+73ce450 Revert "TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)"
+75898f3 TP4: PodImagePullOrCrashLoop - drop the flapping reason label from the alert series
+4c45573 TP4 scenario 3: deploy a podinfo tag that does not exist (6.99.0-broken)
+
+$ git show --stat HEAD | tail -3; git show HEAD | grep '^[-+] '
+
+ devOps/TP4/gitops/workloads/podinfo/overlays/prod/kustomization.yaml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-    newTag: "6.99.0-broken"
++    newTag: "6.17.0"
+
+$ git push origin tp4-gitops     # 12:59:23
+
+$ argocd app set podinfo-prod --sync-policy automated --self-heal --auto-prune
+
+12:59:28  podinfo-prod Synced to 73ce450
+
+$ apps
+NAME                SYNC     HEALTH    REVISION
+monitoring-config   Synced   Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+monitoring-stack    Synced   Healthy   <none>
+podinfo-dev         Synced   Healthy   75898f35169ca4d985f5f95331882e6551e3a696
+podinfo-prod        Synced   Healthy   73ce45029c6f559d239e585ced08b7386f5b9b8d
+root                Synced   Healthy   73ce45029c6f559d239e585ced08b7386f5b9b8d
+
+$ argocd app get podinfo-prod | sed -n '10,13p'
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        Synced to tp4-gitops (73ce450)
+Health Status:      Healthy
+
+$ argocd app history podinfo-prod
+SOURCE  https://github.com/HelmiDev03/rootrt5.git
+ID      DATE                           REVISION
+0       2026-11-22 12:29:21 +0100 WAT  tp4-gitops (034d275)
+1       2026-11-22 12:44:08 +0100 WAT  tp4-gitops (255722f)
+2       2026-11-22 12:48:09 +0100 WAT  tp4-gitops (4c45573)
+3       2026-11-22 12:56:38 +0100 WAT  tp4-gitops (255722f)
+
+$ kubectl -n podinfo-prod get deploy podinfo -o wide | cut -c1-120
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                                SELECTOR
+podinfo   3/3     3            3           13m   podinfo      ghcr.io/stefanprodan/podinfo:6.17.0   app.kubernetes.io/na
+
+$ kubectl -n argocd get app podinfo-prod -o jsonpath='{.spec.syncPolicy.automated}{"\n"}'
+{"prune":true,"selfHeal":true}
+

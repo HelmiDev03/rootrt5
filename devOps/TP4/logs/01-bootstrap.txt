@@ -1,0 +1,127 @@
+$ minikube start -p tp4 --driver=vmware --cpus=4 --memory=8192 --disk-size=30g --kubernetes-version=v1.34.0
+* [tp4] minikube v1.39.0 on Microsoft Windows 11 Home Single Language 26H2
+* Using the vmware driver based on user configuration
+* Starting "tp4" primary control-plane node in "tp4" cluster
+* Downloading Kubernetes v1.34.0 preload ...
+* Preparing Kubernetes v1.34.0 on containerd 2.3.4 ...
+* Configuring bridge CNI (Container Networking Interface) ...
+* Verifying Kubernetes components...
+  - Using image gcr.io/k8s-minikube/storage-provisioner:v5
+* Enabled addons: storage-provisioner, default-storageclass
+  - Want kubectl v1.34.0? Try 'minikube kubectl -- get pods -A'
+* Done! kubectl is now configured to use "tp4" cluster and "default" namespace by default
+
+$ kubectl get nodes -o wide
+NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP       EXTERNAL-IP   OS-IMAGE               KERNEL-VERSION   CONTAINER-RUNTIME
+tp4    Ready    control-plane   24s   v1.34.0   192.168.174.134   <none>        Buildroot 2025.02.16   6.6.152          containerd://2.3.4
+
+$ ./gitops/bootstrap/install.sh
+==> Installing ArgoCD
+namespace/argocd serverside-applied
+Warning: unrecognized format "int64"
+customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/applicationsets.argoproj.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/appprojects.argoproj.io serverside-applied
+serviceaccount/argocd-application-controller serverside-applied
+serviceaccount/argocd-applicationset-controller serverside-applied
+serviceaccount/argocd-dex-server serverside-applied
+serviceaccount/argocd-notifications-controller serverside-applied
+serviceaccount/argocd-redis serverside-applied
+serviceaccount/argocd-repo-server serverside-applied
+serviceaccount/argocd-server serverside-applied
+role.rbac.authorization.k8s.io/argocd-application-controller serverside-applied
+role.rbac.authorization.k8s.io/argocd-applicationset-controller serverside-applied
+role.rbac.authorization.k8s.io/argocd-dex-server serverside-applied
+role.rbac.authorization.k8s.io/argocd-notifications-controller serverside-applied
+role.rbac.authorization.k8s.io/argocd-redis serverside-applied
+role.rbac.authorization.k8s.io/argocd-server serverside-applied
+clusterrole.rbac.authorization.k8s.io/argocd-application-controller serverside-applied
+clusterrole.rbac.authorization.k8s.io/argocd-applicationset-controller serverside-applied
+clusterrole.rbac.authorization.k8s.io/argocd-server serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-application-controller serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-dex-server serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-notifications-controller serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-redis serverside-applied
+rolebinding.rbac.authorization.k8s.io/argocd-server serverside-applied
+clusterrolebinding.rbac.authorization.k8s.io/argocd-application-controller serverside-applied
+clusterrolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller serverside-applied
+clusterrolebinding.rbac.authorization.k8s.io/argocd-server serverside-applied
+configmap/argocd-cm serverside-applied
+configmap/argocd-cmd-params-cm serverside-applied
+configmap/argocd-gpg-keys-cm serverside-applied
+configmap/argocd-notifications-cm serverside-applied
+configmap/argocd-rbac-cm serverside-applied
+configmap/argocd-ssh-known-hosts-cm serverside-applied
+configmap/argocd-tls-certs-cm serverside-applied
+secret/argocd-notifications-secret serverside-applied
+secret/argocd-secret serverside-applied
+Warning: spec.SessionAffinity is ignored for headless services
+service/argocd-application-controller serverside-applied
+service/argocd-applicationset-controller serverside-applied
+service/argocd-dex-server serverside-applied
+service/argocd-metrics serverside-applied
+service/argocd-notifications-controller-metrics serverside-applied
+service/argocd-redis serverside-applied
+service/argocd-repo-server serverside-applied
+service/argocd-server serverside-applied
+service/argocd-server-metrics serverside-applied
+deployment.apps/argocd-applicationset-controller serverside-applied
+deployment.apps/argocd-dex-server serverside-applied
+deployment.apps/argocd-notifications-controller serverside-applied
+deployment.apps/argocd-redis serverside-applied
+deployment.apps/argocd-repo-server serverside-applied
+deployment.apps/argocd-server serverside-applied
+statefulset.apps/argocd-application-controller serverside-applied
+networkpolicy.networking.k8s.io/argocd-application-controller-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-applicationset-controller-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-dex-server-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-notifications-controller-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-redis-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-repo-server-network-policy serverside-applied
+networkpolicy.networking.k8s.io/argocd-server-network-policy serverside-applied
+Waiting for deployment "argocd-server" rollout to finish: 0 of 1 updated replicas are available...
+error: timed out waiting for the condition
+
+# (first run: rollout timed out while the ArgoCD image was still downloading, re-run)
+$ ./gitops/bootstrap/install.sh
+==> Installing ArgoCD
+Warning: spec.SessionAffinity is ignored for headless services
+Waiting for deployment "argocd-server" rollout to finish: 0 of 1 updated replicas are available...
+deployment "argocd-server" successfully rolled out
+deployment "argocd-repo-server" successfully rolled out
+partitioned roll out complete: 1 new pods have been updated...
+==> Grafana admin secret (not stored in Git)
+namespace/monitoring created
+secret/grafana-admin created
+==> Root application (App-of-Apps)
+Warning: metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name including a path (/) to avoid accidental conflicts with other finalizer writers
+application.argoproj.io/root created
+
+Done. ArgoCD now pulls everything else from Git.
+  ArgoCD UI : kubectl -n argocd port-forward svc/argocd-server 8080:443   -> https://localhost:8080
+              user admin, password:
+              kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+  Grafana   : kubectl -n monitoring port-forward svc/kps-grafana 3000:80  -> http://localhost:3000
+              kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
+  Prometheus: kubectl -n monitoring port-forward svc/kps-kube-prometheus-stack-prometheus 9090:9090
+
+# repo-server: 'git fetch ... failed signal: terminated: fatal: early EOF' (60 s default timeout on a slow link)
+# fix in bootstrap/argocd/kustomization.yaml: repo server timeouts 300 s, ARGOCD_EXEC_TIMEOUT=5m
+$ kubectl apply -k gitops/bootstrap/argocd --server-side --force-conflicts
+Warning: spec.SessionAffinity is ignored for headless services
+serviceaccount/argocd-repo-server serverside-applied
+configmap/argocd-cmd-params-cm serverside-applied
+service/argocd-repo-server serverside-applied
+deployment.apps/argocd-repo-server serverside-applied
+networkpolicy.networking.k8s.io/argocd-repo-server-network-policy serverside-applied
+$ kubectl -n argocd rollout restart deploy/argocd-repo-server deploy/argocd-server statefulset/argocd-application-controller
+deployment.apps/argocd-repo-server restarted
+deployment.apps/argocd-server restarted
+statefulset.apps/argocd-application-controller restarted
+Waiting for deployment "argocd-repo-server" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "argocd-repo-server" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "argocd-repo-server" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "argocd-repo-server" rollout to finish: 1 old replicas are pending termination...
+deployment "argocd-repo-server" successfully rolled out
+partitioned roll out complete: 1 new pods have been updated...

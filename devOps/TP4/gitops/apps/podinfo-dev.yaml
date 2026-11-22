@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: tp4
+  source:
+    repoURL: https://github.com/HelmiDev03/rootrt5.git
+    targetRevision: tp4-gitops
+    path: devOps/TP4/gitops/workloads/podinfo/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: podinfo-dev
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

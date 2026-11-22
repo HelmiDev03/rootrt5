@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: podinfo-dev
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      env: dev
+
+# dev follows the newest podinfo release
+images:
+  - name: ghcr.io/stefanprodan/podinfo
+    newTag: "6.17.0"
+
+replicas:
+  - name: podinfo
+    count: 1
+
+patches:
+  - target:
+      kind: Deployment
+      name: podinfo
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "TP4 GitOps - dev"

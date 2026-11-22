@@ -1,0 +1,113 @@
+TP4 : GitOps, ArgoCD et Observabilité pour le Continuous Deployment
+Thématiques : GitOps • Continuous Deployment • Kubernetes • ArgoCD • Observabilité (Prometheus & Grafana)
+
+1. Contexte et Objectifs Généraux
+
+Dans les architectures Cloud-Native modernes, automatiser le déploiement ne suffit plus : il est indispensable de garantir la reproductibilité des environnements tout en disposant d'une visibilité complète sur l'état interne du système.
+
+Ce travail pratique s'articule en deux volets complémentaires :
+
+Partie A (GitOps & CD) : Mettre en place un pipeline de Continuous Deployment de bout en bout avec ArgoCD, en plaçant le dépôt Git comme unique source de vérité (Single Source of Truth).
+
+Partie B (Observabilité) : Intégrer une stack d'observabilité complète avec Prometheus et Grafana afin de superviser en temps réel aussi bien le control plane GitOps (ArgoCD) que les performances et la santé des workloads déployés.
+
+Choix de l'application : Vous disposez d'une totale liberté sur le choix de l'application déployée (serveur web NGINX, API REST Node.js/Python/Go, microservice instrumenté, etc.). Toutefois, pour tirer pleinement parti de la Partie B, il est fortement recommandé de choisir ou d'instrumenter une application exposant des métriques (ou accompagnée d'un exporter Prometheus). L'évaluation porte sur votre maîtrise de l'architecture GitOps, de la chaîne d'observabilité et de votre capacité d'analyse en tant que futur ingénieur.
+
+---
+
+Partie A : Mise en œuvre du Continuous Deployment avec GitOps et ArgoCD
+
+1. Concepts clés à illustrer et maîtriser
+
+Votre infrastructure et vos dépôts doivent démontrer la maîtrise des cinq principes fondamentaux suivants :
+
+Single Source of Truth (SSOT) : L'état désiré de votre application et de son infrastructure Kubernetes est entièrement décrit de façon déclarative dans un dépôt Git.
+
+GitOps & Continuous Deployment (Pull-based) : ArgoCD surveille en continu le dépôt Git et applique automatiquement les changements dans le cluster Kubernetes sans passer par des accès directs externes (Push).
+
+Configuration Drift & Self-Healing (Auto-Heal) : Détection immédiate de toute modification manuelle non autorisée effectuée directement sur le cluster et réconciliation automatique pour revenir à l'état décrit dans Git.
+
+Distinction entre Sync Status et Health Status : Compréhension précise de la différence entre la synchronisation du manifeste avec Git (Synced / OutOfSync) et l'état opérationnel réel des conteneurs (Healthy, Progressing, Degraded).
+
+Rollback Facilité & Historique : Capacité à exploiter l'historique des révisions pour revenir instantanément à un état stable antérieur.
+
+2. Travail demandé (Partie A)
+
+Étape 1 — Structure du dépôt Git :
+- Créez un dépôt Git dédié à vos manifestes Kubernetes.
+- Utilisez une approche déclarative structurée (Kustomize avec gestion d'overlays ou Chart Helm) plutôt que de simples fichiers YAML bruts.
+
+Étape 2 — Configuration dans ArgoCD :
+- Déployez ArgoCD sur votre cluster Kubernetes.
+- Créez une ressource Application ArgoCD pointant vers votre dépôt Git.
+- Activez obligatoirement les options d'Automated Sync ainsi que le Self-Healing (selfHeal: true).
+
+3. Démonstration obligatoire — Partie A (Évaluation en Direct)
+
+Pendant la présentation, vous devrez exécuter et commenter en direct les 4 scénarios suivants depuis le tableau de bord (Web UI) d'ArgoCD et votre terminal :
+
+1. Déploiement continu automatisé :
+- Modifiez une configuration dans votre dépôt Git (ex. : changement du nombre de répliques ou mise à jour du tag de l'image Docker) et poussez la modification.
+- Montrez que le changement se répercute automatiquement sur le cluster via ArgoCD sans aucune intervention manuelle.
+
+2. Détection du Drift & Self-Healing :
+- Depuis votre terminal, forcez une altération manuelle sur le cluster (ex. : kubectl delete deployment ... ou modification directe d'une ressource avec kubectl edit).
+- Montrez sur ArgoCD la détection instantanée du Drift (écart) et la réconciliation automatique (Self-Healing) qui restaure immédiatement la ressource supprimée ou modifiée.
+
+3. Gestion des erreurs — Sync Status vs Health Status :
+- Introduisez volontairement une erreur applicative dans Git (ex. : spécifier un nom ou tag d'image Docker inexistant).
+- Expliquez sur le tableau de bord ArgoCD pourquoi l'application reste en état Synced (la déclaration correspond à Git) mais bascule en état Degraded / ErrImagePull (la santé du pod est défaillante).
+
+4. Historique & Rollback rapide :
+- Ouvrez l'onglet History and Rollback sur le tableau de bord ArgoCD.
+- Effectuez un Rollback en direct vers une version stable précédente pour corriger le problème, et expliquez l'impact de cette action sur l'Auto-Sync.
+
+---
+
+Partie B : Observabilité du Pipeline GitOps et des Workloads (Prometheus & Grafana)
+
+1. Objectif et Enjeux d'Ingénierie
+
+Un pipeline GitOps automatise les changements en production, mais accélère également la propagation potentielle d'anomalies. L'objectif de cette seconde partie est de mettre en place une chaîne d'observabilité permettant de :
+- Superviser l'état et les performances du contrôleur ArgoCD lui-même (observabilité du pipeline de livraison) ;
+- Surveiller la consommation de ressources, la disponibilité et les erreurs des pods applicatifs (observabilité des workloads) ;
+- Corréler visuellement les événements GitOps (déploiements, dérives, rollbacks) avec les métriques système et applicatives.
+
+2. Travail demandé (Partie B)
+
+Étape 1 — Déploiement de la stack Prometheus & Grafana :
+- Déployez Prometheus et Grafana sur votre cluster Kubernetes (par exemple via le chart kube-prometheus-stack).
+- Exigence niveau ingénieur : Privilégiez un déploiement déclaratif piloté par ArgoCD (via une seconde Application ArgoCD ou le pattern App-of-Apps) afin de respecter le paradigme GitOps sur l'ensemble de votre infrastructure.
+
+Étape 2 — Collecte de métriques (Scraping) : Configurez Prometheus (via des ressources ServiceMonitor ou PodMonitor) pour collecter les métriques à deux niveaux :
+- Métriques du Control Plane ArgoCD : Exposez et scrapez les endpoints internes d'ArgoCD (argocd-metrics, argocd-server-metrics, argocd-repo-server-metrics) et identifiez les métriques clés liées à l'état des applications (argocd_app_info), aux synchronisations (argocd_app_sync_total) et aux appels Git.
+- Métriques Cluster & Application : Collectez les métriques Kubernetes (kube-state-metrics, CPU/Mémoire des conteneurs, redémarrages de pods) ainsi que les métriques applicatives si votre application expose un endpoint /metrics.
+
+Étape 3 — Visualisation et Requêtes PromQL dans Grafana :
+- Configurez Prometheus comme Data Source dans Grafana et construisez un Dashboard Grafana unifié intégrant des requêtes PromQL pertinentes pour visualiser : l'état global des applications ArgoCD (Sync Status et Health Status) et l'historique des synchronisations ; le nombre de pods actifs (Desired vs Available vs Unavailable) ; la consommation CPU / Mémoire et le taux d'erreurs ou de redémarrages des conteneurs.
+
+Étape 4 — Alerting :
+- Configurez au moins une règle d'alerte (dans Prometheus/Alertmanager ou Grafana Alerting) détectant une anomalie critique : par exemple une application ArgoCD restant en état Degraded ou OutOfSync pendant plus de 2 minutes, ou un pod bloqué en ImagePullBackOff / CrashLoopBackOff.
+
+3. Démonstration obligatoire — Partie B (Évaluation en Direct)
+
+En complément des 4 scénarios de la Partie A, vous présenterez en direct le scénario suivant :
+
+5. Corrélation GitOps, Métriques & Alerting :
+- Déclenchez une montée en charge (augmentation du nombre de répliques via Git) ou réinjectez l'anomalie du Scénario 3 (image Docker invalide).
+- Montrez en temps réel sur votre Dashboard Grafana l'évolution des courbes PromQL (variation du nombre de pods, changement d'état de santé ArgoCD, compteur de synchronisations) ainsi que le passage en état Firing de votre règle d'alerte, puis son retour à Normal après résolution via GitOps.
+
+---
+
+Livrables et Critères d'Évaluation
+
+Livrables attendus
+1. Dépôt(s) Git structuré(s) : Code applicatif (le cas échéant) et manifestes Kubernetes organisés proprement (Kustomize ou Helm), définitions déclaratives des applications ArgoCD, des ServiceMonitor, export JSON du dashboard Grafana, ainsi qu'un fichier README.md documentant l'architecture globale, les choix techniques et les requêtes PromQL utilisées.
+2. Soutenance et Démonstration en Direct : Exécution fluide et commentée des 5 scénarios obligatoires (Parties A et B).
+
+Grille d'évaluation indicative
+- Architecture GitOps & Structuration des manifestes (Kustomize / Helm) : 25 %
+- Maîtrise d'ArgoCD et démonstration des 4 scénarios CD (Partie A) : 30 %
+- Intégration Prometheus / Grafana, pertinence des requêtes PromQL et Alerting (Partie B) : 30 %
+- Recul critique d'ingénieur (qualité des explications, sécurité, bonnes pratiques) : 15 %
+Total : 100 %
