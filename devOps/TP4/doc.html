@@ -243,7 +243,7 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
       <a href="#s3"><span class="i">S3</span>Sync vs Health<b class="mb m3">M3</b></a>
       <a href="#s4"><span class="i">S4</span>History &amp; rollback<b class="mb m3">M3</b></a>
       <div class="grp">Part B · observability</div>
-      <a href="#stack"><span class="i">3</span>Prometheus stack<b class="mb m3">M3</b></a>
+      <a href="#stack"><span class="i">3</span>Prometheus stack<b class="mb m4">M4</b></a>
       <a href="#dash"><span class="i">4</span>Dashboard &amp; PromQL<b class="mb m4">M4</b></a>
       <a href="#alert"><span class="i">5</span>Alerting<b class="mb m4">M4</b></a>
       <a href="#s5"><span class="i">S5</span>Correlation demo<b class="mb m4">M4</b></a>
@@ -553,7 +553,7 @@ deployment.apps "podinfo" deleted from podinfo-prod namespace
 
   <!-- ===================================================== S3 -->
   <div class="turn m3"><span class="who-big">Member 3</span>
-    <div class="what">Scenarios 3 &amp; 4 + metrics collection<span>S3 Sync vs Health · S4 history &amp; rollback · Prometheus stack &amp; scraping</span></div></div>
+    <div class="what">Scenarios 3 &amp; 4<span>S3 Sync vs Health · S4 history &amp; rollback</span></div></div>
   <section id="s3">
     <h2><span class="n">S3</span>Error handling: Sync Status vs Health Status <small>Part A · scenario 3</small><em class="who m3">Member 3</em></h2>
     <p>We commit a tag that <b>does not exist</b> (<code>6.99.0-broken</code>). The manifest is valid YAML and ArgoCD applies it
@@ -659,8 +659,10 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
   </section>
 
   <!-- ===================================================== STACK -->
+  <div class="turn m4"><span class="who-big">Member 4</span>
+    <div class="what">Part B: observability, scenario 5 &amp; conclusion<span>Prometheus stack &amp; scraping · Grafana dashboard &amp; PromQL · Alerting · S5 correlation · Key takeaways</span></div></div>
   <section id="stack">
-    <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small><em class="who m3">Member 3</em></h2>
+    <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small><em class="who m4">Member 4</em></h2>
     <p><b>kube-prometheus-stack</b> is deployed by the ArgoCD Application <code>monitoring-stack</code> (Helm chart pinned to 93.3.0,
        values from our repository). Our own objects (ServiceMonitors, rules, dashboard) are a separate Application, <code>monitoring-config</code>,
        so the stack can be upgraded independently of our configuration.</p>
@@ -708,8 +710,6 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
   </section>
 
   <!-- ===================================================== DASHBOARD -->
-  <div class="turn m4"><span class="who-big">Member 4</span>
-    <div class="what">Dashboard, alerting, scenario 5 &amp; conclusion<span>Grafana dashboard &amp; PromQL · Alerting · S5 correlation · Key takeaways</span></div></div>
   <section id="dash">
     <h2><span class="n b">4</span>Unified Grafana dashboard &amp; PromQL <small>Part B · step 3</small><em class="who m4">Member 4</em></h2>
     <p>The dashboard <b>"TP4 – GitOps &amp; Workloads Overview"</b> is a JSON file in Git
