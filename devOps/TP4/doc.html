@@ -249,7 +249,7 @@ footer { text-align:center; color:var(--muted); font-size:13px; margin-top:34px;
       <a href="#s5"><span class="i">S5</span>Correlation demo<b class="mb m4">M4</b></a>
       <div class="grp">Review</div>
       <a href="#review"><span class="i">⚖</span>Engineering review</a>
-      <a href="#retenir"><span class="i">★</span>Key takeaways<b class="mb m4">M4</b></a>
+      <a href="#retenir"><span class="i">★</span>Key takeaways</a>
       <a class="top" href="#"><span class="i">↑</span>Back to top</a>
     </nav>
   </aside>
@@ -660,7 +660,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
 
   <!-- ===================================================== STACK -->
   <div class="turn m4"><span class="who-big">Member 4</span>
-    <div class="what">Part B: observability, scenario 5 &amp; conclusion<span>Prometheus stack &amp; scraping · Grafana dashboard &amp; PromQL · Alerting · S5 correlation · Key takeaways</span></div></div>
+    <div class="what">Part B: observability &amp; scenario 5<span>Prometheus stack &amp; scraping · Grafana dashboard &amp; PromQL · Alerting · S5 correlation</span></div></div>
   <section id="stack">
     <h2><span class="n b">3</span>Observability stack &amp; scraping <small>Part B · steps 1–2</small><em class="who m4">Member 4</em></h2>
     <p><b>kube-prometheus-stack</b> is deployed by the ArgoCD Application <code>monitoring-stack</code> (Helm chart pinned to 93.3.0,
@@ -857,7 +857,7 @@ ArgoCDAppOutOfSync <span class="bad">firing</span> since 11:56:56 UTC
   </section>
 
   <section id="retenir">
-    <h2><span class="n">★</span>Key takeaways<em class="who m4">Member 4</em></h2>
+    <h2><span class="n">★</span>Key takeaways</h2>
     <div class="takeaways">
       <div><b>Single source of truth</b>The whole platform (apps, ArgoCD projects, Prometheus stack, alerts, dashboards) is in Git. The cluster can be rebuilt with <code>install.sh</code>, and everything after it is pulled.</div>
       <div><b>Pull-based CD</b>A commit reaches production in about a minute with no deploy command, and every change has an author and a message.</div>
